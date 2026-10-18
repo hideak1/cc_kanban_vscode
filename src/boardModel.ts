@@ -82,7 +82,7 @@ export function reconcile(
   return changed ? { ...board, columns, hidden } : board;
 }
 
-export function buildView(board: Board, sessions: Session[]): View {
+export function buildView(board: Board, sessions: Session[], justStarted: Set<string> = new Set()): View {
   const byCard = new Map(sessions.map((s) => [sessionCardId(s.shortId), s]));
   const columns = board.columns.map((c) => {
     const cards: ViewCard[] = [];
@@ -95,7 +95,7 @@ export function buildView(board: Board, sessions: Session[]): View {
           title: s.name,
           cwd: s.cwd,
           folder: folderOf(s.cwd),
-          badge: statusBadge(s.status),
+          badge: s.status === null && justStarted.has(id) ? { label: '启动中', tone: 'running' } : statusBadge(s.status),
           interactive: s.kind === 'interactive',
           startedAt: s.startedAt,
         });

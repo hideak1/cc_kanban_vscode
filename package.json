@@ -38,6 +38,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "npm run build && node test/e2e/run.mjs",
+    "test:real": "esbuild test/integration/realCli.ts --bundle --platform=node --format=esm --log-level=warning --outfile=.vscode-test/realCli.mjs && node .vscode-test/realCli.mjs",
     "package": "npm run build && vsce package --no-dependencies --allow-missing-repository --skip-license"
   },
   "devDependencies": {

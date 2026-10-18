@@ -166,9 +166,10 @@ describe('Controller.handle', () => {
     expect(cardIds(s)).toEqual([[], []]);
     expect(s.saved?.columns[1]?.cardIds).toEqual(['s:f8475127']);
 
-    s.setSessions([session('f8475127')]);
+    s.setSessions([session('f8475127', { status: null })]);
     await s.c.refresh();
     expect(cardIds(s)).toEqual([[], ['s:f8475127']]);
+    expect(s.lastState().view.columns[1]!.cards[0]!.badge).toEqual({ label: '启动中', tone: 'running' });
   });
 
   it('drops a started card that never shows up after the 60s grace period', async () => {

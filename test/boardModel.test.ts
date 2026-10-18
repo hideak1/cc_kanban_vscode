@@ -133,6 +133,17 @@ describe('buildView', () => {
   });
 });
 
+describe('buildView with just-started sessions', () => {
+  it('shows 启动中 instead of 已停止 for a just-started session with null status', () => {
+    const b = board([[INBOX_ID, ['s:aaaaaaaa', 's:bbbbbbbb']]]);
+    const view = buildView(b, [session('aaaaaaaa', { status: null }), session('bbbbbbbb', { status: null })], new Set(['s:aaaaaaaa']));
+    expect(view.columns[0]!.cards.map((c) => c.badge)).toEqual([
+      { label: '启动中', tone: 'running' },
+      { label: '已停止', tone: 'stopped' },
+    ]);
+  });
+});
+
 describe('column and card operations', () => {
   const b = board([[INBOX_ID, ['s:a', 's:b', 's:c']], ['doing', ['s:d']]]);
 

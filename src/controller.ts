@@ -190,7 +190,7 @@ export class Controller {
   private post(): void {
     this.d.post({
       type: 'state',
-      view: buildView(this.board, this.sessions),
+      view: buildView(this.board, this.sessions, new Set(this.justStarted.keys())),
       error: this.error,
       defaultCwd: this.d.defaultCwd(),
     });
