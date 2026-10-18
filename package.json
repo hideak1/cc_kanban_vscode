@@ -1,0 +1,52 @@
+{
+  "name": "claude-kanban",
+  "displayName": "Claude Kanban",
+  "description": "A kanban board for your Claude Code sessions: organize, see live status, click to attach.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeKanban.open",
+        "title": "Claude Kanban: Open Board"
+      }
+    ],
+    "configuration": {
+      "title": "Claude Kanban",
+      "properties": {
+        "claudeKanban.claudePath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the claude CLI. Leave empty to auto-detect."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "npm run build && node test/e2e/run.mjs",
+    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository --skip-license"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
