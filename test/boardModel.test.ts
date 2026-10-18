@@ -37,16 +37,17 @@ function board(columns: [string, string[]][], extra: Partial<Board> = {}): Board
     columns: columns.map(([id, cardIds]) => ({ id, title: id === INBOX_ID ? '未归类' : id.toUpperCase(), cardIds })),
     drafts: {},
     hidden: [],
+    starting: {},
     ...extra,
   };
 }
 
 const ids = (b: Board) => Object.fromEntries(b.columns.map((c) => [c.id, c.cardIds]));
-const noKeep = { pruneMissing: true, keep: new Set<string>() };
+const noKeep = { pruneMissing: true, startedAfter: 0 };
 
 describe('defaultBoard', () => {
   it('has only the inbox column', () => {
-    expect(defaultBoard()).toEqual({ version: 1, columns: [{ id: 'inbox', title: '未归类', cardIds: [] }], drafts: {}, hidden: [] });
+    expect(defaultBoard()).toEqual({ version: 1, columns: [{ id: 'inbox', title: '未归类', cardIds: [] }], drafts: {}, hidden: [], starting: {} });
   });
 });
 
@@ -71,15 +72,32 @@ describe('reconcile', () => {
     expect(ids(out)).toEqual({ inbox: ['d:draft1'], doing: ['s:aaaaaaaa'] });
   });
 
-  it('keeps a just-started session card that is not listed yet', () => {
-    const b = board([[INBOX_ID, []], ['doing', ['s:new00000']]]);
-    const out = reconcile(b, [], { pruneMissing: true, keep: new Set(['s:new00000']) });
+  it('keeps a just-started session card that is not listed yet (start time stored in the board)', () => {
+    const b = board([[INBOX_ID, []], ['doing', ['s:new00000']]], { starting: { 's:new00000': 5000 } });
+    const out = reconcile(b, [], { pruneMissing: true, startedAfter: 4000 });
     expect(ids(out)).toEqual({ inbox: [], doing: ['s:new00000'] });
+    expect(out.starting).toEqual({ 's:new00000': 5000 });
+  });
+
+  it('prunes a started card and its start mark once the grace period has passed', () => {
+    const b = board([[INBOX_ID, []], ['doing', ['s:new00000']]], { starting: { 's:new00000': 5000 } });
+    const out = reconcile(b, [], { pruneMissing: true, startedAfter: 6000 });
+    expect(ids(out)).toEqual({ inbox: [], doing: [] });
+    expect(out.starting).toEqual({});
+  });
+
+  it('clears the start mark once the session reports a real status', () => {
+    const b = board([[INBOX_ID, ['s:aaaaaaaa', 's:bbbbbbbb']]], { starting: { 's:aaaaaaaa': 5000, 's:bbbbbbbb': 5000 } });
+    const out = reconcile(b, [session('aaaaaaaa', { status: 'busy' }), session('bbbbbbbb', { status: null })], {
+      pruneMissing: true,
+      startedAfter: 0,
+    });
+    expect(out.starting).toEqual({ 's:bbbbbbbb': 5000 });
   });
 
   it('never prunes when pruneMissing is false (CLI failure)', () => {
     const b = board([[INBOX_ID, ['s:gone0000']]], { hidden: ['s:gone1111'] });
-    const out = reconcile(b, [], { pruneMissing: false, keep: new Set() });
+    const out = reconcile(b, [], { pruneMissing: false, startedAfter: 0 });
     expect(out).toEqual(b);
   });
 
@@ -135,8 +153,8 @@ describe('buildView', () => {
 
 describe('buildView with just-started sessions', () => {
   it('shows 启动中 instead of 已停止 for a just-started session with null status', () => {
-    const b = board([[INBOX_ID, ['s:aaaaaaaa', 's:bbbbbbbb']]]);
-    const view = buildView(b, [session('aaaaaaaa', { status: null }), session('bbbbbbbb', { status: null })], new Set(['s:aaaaaaaa']));
+    const b = board([[INBOX_ID, ['s:aaaaaaaa', 's:bbbbbbbb']]], { starting: { 's:aaaaaaaa': 5000 } });
+    const view = buildView(b, [session('aaaaaaaa', { status: null }), session('bbbbbbbb', { status: null })]);
     expect(view.columns[0]!.cards.map((c) => c.badge)).toEqual([
       { label: '启动中', tone: 'running' },
       { label: '已停止', tone: 'stopped' },
@@ -187,16 +205,17 @@ describe('column and card operations', () => {
 
   it('promotes a draft into a session card in the same slot', () => {
     const withDraft = moveCard(createDraft(b, 'x1', { title: 'T', prompt: 'P', cwd: '/w' }), 'd:x1', 'doing', 1);
-    const promoted = promoteDraft(withDraft, 'x1', 'f8475127');
+    const promoted = promoteDraft(withDraft, 'x1', 'f8475127', 7000);
     expect(ids(promoted)).toEqual({ inbox: ['s:a', 's:b', 's:c'], doing: ['s:d', 's:f8475127'] });
     expect(promoted.drafts).toEqual({});
+    expect(promoted.starting).toEqual({ 's:f8475127': 7000 });
   });
 
   it('promoteDraft removes a duplicate that a racing refresh already put in the inbox', () => {
     const withDraft = moveCard(createDraft(b, 'x1', { title: 'T', prompt: 'P', cwd: '/w' }), 'd:x1', 'doing', 0);
-    const raced = reconcile(withDraft, [session('f8475127')], { pruneMissing: false, keep: new Set() });
+    const raced = reconcile(withDraft, [session('f8475127')], { pruneMissing: false, startedAfter: 0 });
     expect(ids(raced).inbox).toContain('s:f8475127');
-    const promoted = promoteDraft(raced, 'x1', 'f8475127');
+    const promoted = promoteDraft(raced, 'x1', 'f8475127', 7000);
     expect(ids(promoted)).toEqual({ inbox: ['s:a', 's:b', 's:c'], doing: ['s:f8475127', 's:d'] });
   });
 

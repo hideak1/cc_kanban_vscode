@@ -49,11 +49,19 @@ export function normalizeBoard(raw: unknown): Board | null {
     (id): id is string => typeof id === 'string' && id.startsWith('s:'),
   );
 
+  const starting: Record<string, number> = {};
+  if (typeof r.starting === 'object' && r.starting !== null) {
+    for (const [id, at] of Object.entries(r.starting as Record<string, unknown>)) {
+      if (id.startsWith('s:') && typeof at === 'number' && Number.isFinite(at)) starting[id] = at;
+    }
+  }
+
   return {
     version: 1,
     columns: [inbox ?? { id: INBOX_ID, title: INBOX_TITLE, cardIds: [] }, ...others],
     drafts,
     hidden,
+    starting,
   };
 }
 

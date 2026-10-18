@@ -1,18 +1,18 @@
-import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { attachCommand, shellQuote } from '../src/shell';
+import { attachTerminalOptions } from '../src/shell';
 
-describe('shellQuote', () => {
-  it.each(['/usr/local/bin/claude', '/Users/me/My Tools/claude', "/tmp/it's/claude", '/tmp/$(whoami)/`x`'])(
-    'round-trips %s through sh unchanged',
-    (p) => {
-      expect(execFileSync('/bin/sh', ['-c', `printf %s ${shellQuote(p)}`], { encoding: 'utf8' })).toBe(p);
-    },
-  );
-});
+describe('attachTerminalOptions', () => {
+  it('runs claude attach as the terminal process itself, so detaching ends the terminal', () => {
+    expect(attachTerminalOptions({ shortId: 'f8475127', name: 'fix login', cwd: '/w', claudePath: '/a b/claude', cwdExists: true })).toEqual({
+      name: 'Claude: fix login',
+      cwd: '/w',
+      shellPath: '/a b/claude',
+      shellArgs: ['attach', 'f8475127'],
+    });
+  });
 
-describe('attachCommand', () => {
-  it('quotes the binary and appends attach <id>', () => {
-    expect(attachCommand('/a b/claude', 'f8475127')).toBe("'/a b/claude' attach f8475127");
+  it('omits a cwd that no longer exists', () => {
+    const o = attachTerminalOptions({ shortId: 'f8475127', name: 'n', cwd: '/gone', claudePath: 'claude', cwdExists: false });
+    expect(o.cwd).toBeUndefined();
   });
 });

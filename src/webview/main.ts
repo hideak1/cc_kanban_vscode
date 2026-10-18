@@ -16,6 +16,13 @@ let addingColumn = false;
 let renaming: string | null = null;
 
 const app = document.getElementById('app')!;
+const toolbarSlot = document.createElement('div');
+const bannerSlot = document.createElement('div');
+const composerSlot = document.createElement('div');
+const boardEl = document.createElement('main');
+for (const slot of [toolbarSlot, bannerSlot, composerSlot]) slot.className = 'slot';
+boardEl.className = 'board';
+app.replaceChildren(toolbarSlot, bannerSlot, composerSlot, boardEl);
 
 function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -301,16 +308,15 @@ function render(): void {
   const { view, error, defaultCwd } = latest;
   const now = Date.now();
 
-  const keepComposer = composerOpen ? document.querySelector<HTMLElement>('.composer') : null;
-  const board = h('main', { class: 'board' });
-  for (const col of view.columns) board.append(column(col, now));
-  if (addingColumn) board.append(newColumnForm());
+  toolbarSlot.replaceChildren(toolbar(view));
+  bannerSlot.replaceChildren(...(error ? [h('div', { class: 'banner', role: 'alert', text: error })] : []));
+  // The composer node is never re-parented while open, so focus and IME input survive every poll.
+  if (!composerOpen) composerSlot.replaceChildren();
+  else if (!composerSlot.firstChild) composerSlot.replaceChildren(composer(defaultCwd));
 
-  const nodes: Node[] = [toolbar(view)];
-  if (error) nodes.push(h('div', { class: 'banner', role: 'alert', text: error }));
-  if (composerOpen) nodes.push(keepComposer ?? composer(defaultCwd));
-  nodes.push(board);
-  app.replaceChildren(...nodes);
+  const columns: Node[] = view.columns.map((col) => column(col, now));
+  if (addingColumn) columns.push(newColumnForm());
+  boardEl.replaceChildren(...columns);
 }
 
 window.addEventListener('message', (e: MessageEvent<ToWebview>) => {

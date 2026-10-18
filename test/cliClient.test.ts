@@ -81,6 +81,11 @@ describe('parseAgentsJson', () => {
     expect(() => parseAgentsJson('not json')).toThrow();
   });
 
+  it('throws when entries exist but none is recognisable (CLI format changed)', () => {
+    expect(() => parseAgentsJson(JSON.stringify([{ id: 'f8475127-x', name: 'a' }, { id: 'ab50d108-y' }]))).toThrow(/format/);
+    expect(parseAgentsJson('[]')).toEqual([]);
+  });
+
   it('skips entries without a string sessionId', () => {
     const out = parseAgentsJson(JSON.stringify([{ name: 'x' }, { sessionId: 'abcdefgh-1', name: 'y' }]));
     expect(out.map((s) => s.shortId)).toEqual(['abcdefgh']);
@@ -126,9 +131,19 @@ describe('CliClient', () => {
     expect(id).toBe('f8475127');
     expect(calls[0]).toEqual({
       file: 'claude',
-      args: ['--bg', '-n', "it's", prompt],
+      args: ['--bg', '-n', "it's", '--', prompt],
       opts: { cwd: '/tmp/x', timeoutMs: 30000 },
     });
+  });
+
+  it('startSession ends option parsing so a prompt starting with "-" stays a prompt', async () => {
+    const { run, calls } = fakeRunner({ code: 0, stdout: BG_OUTPUT, stderr: '' });
+    await new CliClient(run, 'claude').startSession({ name: 'n', prompt: '- fix the login bug', cwd: '/x' });
+    expect(calls[0]?.args.slice(-2)).toEqual(['--', '- fix the login bug']);
+  });
+
+  it('parses the id when the backgrounded line has a trailing note', () => {
+    expect(parseBgOutput('backgrounded · e23f6cbb · probe (idle — send a prompt to start)\n')).toBe('e23f6cbb');
   });
 
   it('startSession surfaces CLI output on failure, trimmed to 300 chars', async () => {

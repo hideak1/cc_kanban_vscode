@@ -26,6 +26,8 @@ export interface Board {
   columns: Column[];
   drafts: Record<string, Draft>;
   hidden: string[];
+  /** cardId → ms timestamp of a session this board just started; shared by all windows via board.json. */
+  starting: Record<string, number>;
 }
 
 export type Tone = 'running' | 'waiting' | 'idle' | 'done' | 'stopped' | 'unknown';

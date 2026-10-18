@@ -4,7 +4,7 @@ export const INBOX_ID = 'inbox';
 const INBOX_TITLE = '未归类';
 
 export function defaultBoard(): Board {
-  return { version: 1, columns: [{ id: INBOX_ID, title: INBOX_TITLE, cardIds: [] }], drafts: {}, hidden: [] };
+  return { version: 1, columns: [{ id: INBOX_ID, title: INBOX_TITLE, cardIds: [] }], drafts: {}, hidden: [], starting: {} };
 }
 
 export function sessionCardId(shortId: string): string {
@@ -48,16 +48,25 @@ function removeCardEverywhere(columns: Column[], cardId: string): Column[] {
 export function reconcile(
   board: Board,
   sessions: Session[],
-  opts: { pruneMissing: boolean; keep: Set<string> },
+  opts: { pruneMissing: boolean; startedAfter: number },
 ): Board {
   const live = new Set(sessions.map((s) => sessionCardId(s.shortId)));
   let changed = false;
 
   let columns = board.columns;
   let hidden = board.hidden;
+  let starting = board.starting;
   if (opts.pruneMissing) {
+    const reported = new Set(sessions.filter((s) => s.status !== null).map((s) => sessionCardId(s.shortId)));
+    const keptStarting = Object.fromEntries(
+      Object.entries(starting).filter(([id, at]) => at >= opts.startedAfter && !reported.has(id)),
+    );
+    if (Object.keys(keptStarting).length !== Object.keys(starting).length) {
+      changed = true;
+      starting = keptStarting;
+    }
     columns = columns.map((c) => {
-      const kept = c.cardIds.filter((id) => !isSessionCard(id) || live.has(id) || opts.keep.has(id));
+      const kept = c.cardIds.filter((id) => !isSessionCard(id) || live.has(id) || id in starting);
       if (kept.length === c.cardIds.length) return c;
       changed = true;
       return { ...c, cardIds: kept };
@@ -79,10 +88,10 @@ export function reconcile(
     columns = columns.map((c) => (c.id === INBOX_ID ? { ...c, cardIds: [...c.cardIds, ...unseen] } : c));
   }
 
-  return changed ? { ...board, columns, hidden } : board;
+  return changed ? { ...board, columns, hidden, starting } : board;
 }
 
-export function buildView(board: Board, sessions: Session[], justStarted: Set<string> = new Set()): View {
+export function buildView(board: Board, sessions: Session[]): View {
   const byCard = new Map(sessions.map((s) => [sessionCardId(s.shortId), s]));
   const columns = board.columns.map((c) => {
     const cards: ViewCard[] = [];
@@ -95,7 +104,7 @@ export function buildView(board: Board, sessions: Session[], justStarted: Set<st
           title: s.name,
           cwd: s.cwd,
           folder: folderOf(s.cwd),
-          badge: s.status === null && justStarted.has(id) ? { label: '启动中', tone: 'running' } : statusBadge(s.status),
+          badge: s.status === null && id in board.starting ? { label: '启动中', tone: 'running' } : statusBadge(s.status),
           interactive: s.kind === 'interactive',
           startedAt: s.startedAt,
         });
@@ -163,14 +172,14 @@ export function deleteDraft(b: Board, draftId: string): Board {
   return { ...b, columns: removeCardEverywhere(b.columns, draftCardId(draftId)), drafts };
 }
 
-export function promoteDraft(b: Board, draftId: string, shortId: string): Board {
+export function promoteDraft(b: Board, draftId: string, shortId: string, startedAt: number): Board {
   const from = draftCardId(draftId);
   const to = sessionCardId(shortId);
   const columns = removeCardEverywhere(b.columns, to).map((c) =>
     c.cardIds.includes(from) ? { ...c, cardIds: c.cardIds.map((id) => (id === from ? to : id)) } : c,
   );
   const { [draftId]: _removed, ...drafts } = b.drafts;
-  return { ...b, columns, drafts };
+  return { ...b, columns, drafts, starting: { ...b.starting, [to]: startedAt } };
 }
 
 export function hideCard(b: Board, cardId: string): Board {

@@ -38,6 +38,10 @@ body {
   height: 100vh;
 }
 
+.slot {
+  display: contents;
+}
+
 /* ---------- toolbar ---------- */
 
 .toolbar {

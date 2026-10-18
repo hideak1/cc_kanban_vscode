@@ -45,7 +45,6 @@ export class Controller {
   private sessions: Session[] = [];
   private error: string | null = null;
   private cli: Cli | null;
-  private readonly justStarted = new Map<string, number>();
   private readonly starting = new Set<string>();
 
   constructor(private readonly d: ControllerDeps) {
@@ -82,9 +81,8 @@ export class Controller {
       this.error = `状态可能过期：${messageOf(e)}`;
       pruneMissing = false;
     }
-    const cutoff = this.d.now() - START_GRACE_MS;
-    for (const [id, at] of this.justStarted) if (at < cutoff) this.justStarted.delete(id);
-    this.commit(reconcile(this.board, this.sessions, { pruneMissing, keep: new Set(this.justStarted.keys()) }), false);
+    const startedAfter = this.d.now() - START_GRACE_MS;
+    this.commit(reconcile(this.board, this.sessions, { pruneMissing, startedAfter }), false);
     this.post();
   }
 
@@ -165,8 +163,7 @@ export class Controller {
     try {
       const prompt = draft.prompt.trim() ? draft.prompt : draft.title;
       const shortId = await this.cli.startSession({ name: draft.title, prompt, cwd: draft.cwd });
-      this.justStarted.set(sessionCardId(shortId), this.d.now());
-      this.commit(promoteDraft(this.board, draftId, shortId));
+      this.commit(promoteDraft(this.board, draftId, shortId, this.d.now()));
     } catch (e) {
       this.d.ui.showError(`启动失败：${messageOf(e)}`);
       return;
@@ -190,7 +187,7 @@ export class Controller {
   private post(): void {
     this.d.post({
       type: 'state',
-      view: buildView(this.board, this.sessions, new Set(this.justStarted.keys())),
+      view: buildView(this.board, this.sessions),
       error: this.error,
       defaultCwd: this.d.defaultCwd(),
     });

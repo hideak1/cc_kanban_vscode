@@ -22,6 +22,7 @@ const sample: Board = {
   ],
   drafts: { x1: { title: 'T', prompt: 'P', cwd: '/w' } },
   hidden: ['s:cccccccc'],
+  starting: { 's:bbbbbbbb': 1790694099011 },
 };
 
 describe('BoardStore', () => {
@@ -105,6 +106,7 @@ describe('normalizeBoard', () => {
       ],
       drafts: { x1: { title: 'T', prompt: 'P', cwd: '/w' } },
       hidden: ['s:cccccccc'],
+      starting: {},
     });
   });
 
@@ -116,6 +118,12 @@ describe('normalizeBoard', () => {
       hidden: [],
     });
     expect(out?.columns.map((c) => c.title)).toEqual(['未归类', 'A']);
+  });
+
+  it('keeps numeric start marks for session cards and defaults a missing map', () => {
+    const { starting: _s, ...legacy } = sample;
+    expect(normalizeBoard(legacy)?.starting).toEqual({});
+    expect(normalizeBoard({ ...sample, starting: { 's:aaaaaaaa': 5, 'd:x1': 6, 's:bbbbbbbb': 'x' } })?.starting).toEqual({ 's:aaaaaaaa': 5 });
   });
 
   it('rejects non-objects and wrong versions', () => {

@@ -172,6 +172,18 @@ describe('Controller.handle', () => {
     expect(s.lastState().view.columns[1]!.cards[0]!.badge).toEqual({ label: '启动中', tone: 'running' });
   });
 
+  it('a second window does not prune a card the first window just started', async () => {
+    const a = setup();
+    await a.c.handle({ type: 'createDraft', title: 'T', prompt: 'P', cwd: '/w' });
+    await a.c.handle({ type: 'addColumn', title: 'Doing' });
+    await a.c.handle({ type: 'move', cardId: 'd:id1', toColumnId: 'c-id2', index: 0 });
+    await a.c.handle({ type: 'startDraft', draftId: 'id1' });
+
+    const b = setup({ board: a.saved! });
+    await b.c.refresh();
+    expect(b.saves).toBe(0);
+  });
+
   it('drops a started card that never shows up after the 60s grace period', async () => {
     const s = setup();
     await s.c.handle({ type: 'createDraft', title: 'T', prompt: 'P', cwd: '/w' });

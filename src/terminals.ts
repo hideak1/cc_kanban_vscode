@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import * as vscode from 'vscode';
-import { attachCommand } from './shell';
+import { attachTerminalOptions } from './shell';
 
 export class Terminals implements vscode.Disposable {
   private readonly byShortId = new Map<string, vscode.Terminal>();
@@ -18,11 +18,10 @@ export class Terminals implements vscode.Disposable {
       existing.show();
       return;
     }
-    const terminal = vscode.window.createTerminal({
-      name: `Claude: ${name}`,
-      cwd: cwd && existsSync(cwd) ? cwd : undefined,
-    });
-    terminal.sendText(attachCommand(claudePath, shortId));
+    existing?.dispose();
+    const terminal = vscode.window.createTerminal(
+      attachTerminalOptions({ shortId, name, cwd, claudePath, cwdExists: !!cwd && existsSync(cwd) }),
+    );
     terminal.show();
     this.byShortId.set(shortId, terminal);
   }

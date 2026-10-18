@@ -41,6 +41,10 @@ export function parseAgentsJson(stdout: string): Session[] {
       startedAt: typeof r.startedAt === 'number' ? r.startedAt : null,
     });
   }
+  if (data.length > 0 && sessions.length === 0) {
+    // Treat as a failure so the board is not pruned: an unknown format must never wipe placements.
+    throw new Error('claude agents --json returned an unrecognised format (no entry has a sessionId)');
+  }
   return sessions;
 }
 
@@ -71,7 +75,8 @@ export class CliClient {
   }
 
   async startSession(o: { name: string; prompt: string; cwd: string }): Promise<string> {
-    const result = await this.run(this.claudePath, ['--bg', '-n', o.name, o.prompt], {
+    // `--` matters: without it, a prompt starting with "-" is silently dropped by the CLI.
+    const result = await this.run(this.claudePath, ['--bg', '-n', o.name, '--', o.prompt], {
       cwd: o.cwd,
       timeoutMs: START_TIMEOUT_MS,
     });
