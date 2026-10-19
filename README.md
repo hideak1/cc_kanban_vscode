@@ -1,4 +1,4 @@
-# Claude Kanban
+# <img src="media/icon.png" width="36" height="36" alt="" align="top"> Claude Kanban
 
 A kanban board for your [Claude Code](https://code.claude.com) sessions, right inside VS Code. Sort sessions into your own columns, see at a glance which ones are running and which are waiting for you, and click a card to attach to it in a terminal.
 

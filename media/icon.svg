@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Claude Kanban icon: an abstract "K" built from three cards — a column (blue)
+       and two cards moving right (orange: waiting for you, green: ready for review). -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#17181d"/>
+  <rect x="28" y="24" width="22" height="80" rx="7" fill="#4a90e2"/>
+  <rect x="58" y="24" width="40" height="34" rx="9" fill="#f2a33a" transform="rotate(-18 78 41)"/>
+  <rect x="58" y="70" width="40" height="34" rx="9" fill="#5cc28a" transform="rotate(18 78 87)"/>
+</svg>
