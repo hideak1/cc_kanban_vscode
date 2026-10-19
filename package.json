@@ -3,7 +3,7 @@
   "displayName": "Claude Kanban",
   "description": "A kanban board for your Claude Code sessions: organize them in columns, see live status, click a card to attach.",
   "version": "0.1.0",
-  "publisher": "hideak1",
+  "publisher": "hideaki",
   "license": "MIT",
   "icon": "media/icon.png",
   "repository": {
