@@ -94,10 +94,16 @@ export async function resolveClaudePath(d: {
   configured: string;
   exists: (p: string) => boolean;
   which: () => Promise<string | null>;
+  /** Well-known install locations, checked when PATH lacks claude (e.g. VS Code launched from the Dock). */
+  candidates: string[];
   loginShell: () => Promise<string | null>;
 }): Promise<string | null> {
   if (d.configured && d.exists(d.configured)) return d.configured;
-  return (await d.which()) ?? (await d.loginShell()) ?? null;
+  const onPath = await d.which();
+  if (onPath) return onPath;
+  const known = d.candidates.find((p) => d.exists(p));
+  if (known) return known;
+  return (await d.loginShell()) ?? null;
 }
 
 export const nodeRunner: Runner = (file, args, opts) =>

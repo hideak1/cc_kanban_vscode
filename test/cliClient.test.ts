@@ -167,8 +167,24 @@ describe('resolveClaudePath', () => {
     configured: '',
     exists: (_p: string) => false,
     which: async () => null as string | null,
+    candidates: [] as string[],
     loginShell: async () => null as string | null,
   };
+
+  it('finds claude in a well-known install location when PATH lacks it (VS Code launched from the Dock)', async () => {
+    let shellCalled = false;
+    const p = await resolveClaudePath({
+      ...base,
+      candidates: ['/Users/me/.local/bin/claude', '/opt/homebrew/bin/claude'],
+      exists: (x) => x === '/opt/homebrew/bin/claude',
+      loginShell: async () => {
+        shellCalled = true;
+        return null;
+      },
+    });
+    expect(p).toBe('/opt/homebrew/bin/claude');
+    expect(shellCalled).toBe(false);
+  });
 
   it('prefers a configured path that exists', async () => {
     const p = await resolveClaudePath({ ...base, configured: '/opt/claude', exists: (x) => x === '/opt/claude', which: async () => '/usr/bin/claude' });

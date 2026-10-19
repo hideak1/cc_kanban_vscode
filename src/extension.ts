@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { join } from 'node:path';
 import * as vscode from 'vscode';
 import { BoardStore } from './boardStore';
 import { CliClient, nodeRunner, resolveClaudePath } from './cliClient';
@@ -20,9 +21,16 @@ async function findClaude(): Promise<string | null> {
       const r = await nodeRunner('/usr/bin/which', ['claude'], { timeoutMs: 3000 });
       return r.code === 0 && r.stdout.trim() ? r.stdout.trim() : null;
     },
+    candidates: [
+      join(homedir(), '.local/bin/claude'),
+      join(homedir(), '.claude/local/claude'),
+      '/opt/homebrew/bin/claude',
+      '/usr/local/bin/claude',
+    ],
     loginShell: async () => {
+      // -i as well as -l: many setups (including installers) add ~/.local/bin to PATH only in .zshrc.
       const shell = process.env.SHELL || '/bin/zsh';
-      const r = await nodeRunner(shell, ['-lc', 'command -v claude'], { timeoutMs: 5000 });
+      const r = await nodeRunner(shell, ['-ilc', 'command -v claude'], { timeoutMs: 5000 });
       const line = r.stdout.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('/')).at(-1);
       return r.code === 0 && line ? line : null;
     },
