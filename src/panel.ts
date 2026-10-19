@@ -33,7 +33,7 @@ export class BoardPanel {
     onVisible: () => void,
   ) {
     const dist = vscode.Uri.joinPath(extensionUri, 'dist');
-    this.panel = vscode.window.createWebviewPanel('claudeKanban', 'Kanban for Claude Code', vscode.ViewColumn.Active, {
+    this.panel = vscode.window.createWebviewPanel('claudeKanban', 'Agent Session Kanban', vscode.ViewColumn.Active, {
       enableScripts: true,
       retainContextWhenHidden: true,
       localResourceRoots: [dist],
@@ -41,7 +41,7 @@ export class BoardPanel {
     this.panel.webview.html = this.html(dist);
     this.panel.webview.onDidReceiveMessage((m: ToHost) => {
       onMessage(m).catch((e: unknown) => {
-        void vscode.window.showErrorMessage(`Kanban for Claude Code: ${e instanceof Error ? e.message : String(e)}`);
+        void vscode.window.showErrorMessage(`Agent Session Kanban: ${e instanceof Error ? e.message : String(e)}`);
       });
     });
     this.panel.onDidChangeViewState(() => {
@@ -64,7 +64,7 @@ export class BoardPanel {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="${style}">
-<title>Kanban for Claude Code</title>
+<title>Agent Session Kanban</title>
 </head>
 <body>
 <div id="app"></div>

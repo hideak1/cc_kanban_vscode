@@ -1,8 +1,8 @@
-# <img src="media/icon.png" width="36" height="36" alt="" align="top"> Kanban for Claude Code
+# <img src="media/icon.png" width="36" height="36" alt="" align="top"> Agent Session Kanban
 
 A kanban board for your [Claude Code](https://code.claude.com) sessions, right inside VS Code. Sort sessions into your own columns, see at a glance which ones are running and which are waiting for you, and click a card to attach to it in a terminal.
 
-![Kanban for Claude Code board](media/screenshot.png)
+![Agent Session Kanban board](media/screenshot.png)
 
 All data comes from the official Claude Code CLI (`claude agents --json`, `claude --bg`, `claude attach`, `claude stop`, `claude respawn`). The extension does not read Claude Code's internal files or host sessions itself. Background sessions keep running when you close VS Code.
 
@@ -22,7 +22,7 @@ All data comes from the official Claude Code CLI (`claude agents --json`, `claud
 
 ## Usage
 
-1. Run **Kanban for Claude Code: Open Board** from the Command Palette, or click **Claude** in the status bar.
+1. Run **Agent Session Kanban: Open Board** from the Command Palette, or click **Claude** in the status bar.
 2. Your existing sessions appear in **Inbox**. Drag them into columns you create with **New column**.
 3. Click a card to attach. Hover a card for **Stop**, **Complete**, or **Resume**.
 4. Use **New task** to queue up work and **Start** it when you're ready.
@@ -48,7 +48,7 @@ npm test            # unit tests (vitest)
 npm run typecheck
 npm run test:e2e    # smoke test in a real VS Code
 npm run test:real   # round-trip against the real claude CLI: starts one tiny session, then removes it
-npm run package     # builds kanban-for-claude-code-<version>.vsix
+npm run package     # builds agent-session-kanban-<version>.vsix
 ```
 
 ## License

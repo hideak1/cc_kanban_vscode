@@ -11,16 +11,16 @@ async function waitFor(check, timeoutMs) {
 }
 
 exports.run = async function run() {
-  const ext = vscode.extensions.getExtension('hideaki.kanban-for-claude-code');
-  assert.ok(ext, 'extension hideaki.kanban-for-claude-code is installed in the test host');
+  const ext = vscode.extensions.getExtension('hideaki.agent-session-kanban');
+  assert.ok(ext, 'extension hideaki.agent-session-kanban is installed in the test host');
   await ext.activate();
   assert.ok(ext.isActive, 'extension activates');
 
   await vscode.commands.executeCommand('claudeKanban.open');
   const opened = await waitFor(
-    () => vscode.window.tabGroups.all.flatMap((g) => g.tabs).some((t) => t.label === 'Kanban for Claude Code'),
+    () => vscode.window.tabGroups.all.flatMap((g) => g.tabs).some((t) => t.label === 'Agent Session Kanban'),
     5000,
   );
-  assert.ok(opened, 'a "Kanban for Claude Code" tab is open after running the command');
+  assert.ok(opened, 'a "Agent Session Kanban" tab is open after running the command');
   console.log('e2e smoke: extension activated and board tab opened');
 };

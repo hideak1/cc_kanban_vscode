@@ -1,7 +1,7 @@
 {
-  "name": "kanban-for-claude-code",
-  "displayName": "Kanban for Claude Code",
-  "description": "A kanban board for your Claude Code sessions: organize them in columns, see live status, click a card to attach.",
+  "name": "agent-session-kanban",
+  "displayName": "Agent Session Kanban",
+  "description": "A kanban board for Claude Code sessions: sort them into columns, see live status, and click a card to attach in a terminal.",
   "version": "0.1.0",
   "publisher": "hideaki",
   "license": "MIT",
@@ -16,10 +16,10 @@
   },
   "keywords": [
     "claude",
-    "claude code",
     "kanban",
     "agents",
     "sessions",
+    "board",
     "ai"
   ],
   "galleryBanner": {
@@ -41,11 +41,11 @@
     "commands": [
       {
         "command": "claudeKanban.open",
-        "title": "Kanban for Claude Code: Open Board"
+        "title": "Agent Session Kanban: Open Board"
       }
     ],
     "configuration": {
-      "title": "Kanban for Claude Code",
+      "title": "Agent Session Kanban",
       "properties": {
         "claudeKanban.claudePath": {
           "type": "string",
