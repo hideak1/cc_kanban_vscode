@@ -3,6 +3,7 @@ export interface AttachTerminalOptions {
   cwd?: string;
   shellPath: string;
   shellArgs: string[];
+  hideFromUser: boolean;
 }
 
 /**
@@ -21,5 +22,9 @@ export function attachTerminalOptions(o: {
     ...(o.cwd && o.cwdExists ? { cwd: o.cwd } : {}),
     shellPath: o.claudePath,
     shellArgs: ['attach', o.shortId],
+    // Extensions such as Python Environments type `source …/activate` into every new terminal,
+    // which here would land in Claude's prompt; they skip hideFromUser terminals. The caller
+    // calls show() right away, so the terminal is still revealed.
+    hideFromUser: true,
   };
 }

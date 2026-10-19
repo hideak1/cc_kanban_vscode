@@ -8,7 +8,13 @@ describe('attachTerminalOptions', () => {
       cwd: '/w',
       shellPath: '/a b/claude',
       shellArgs: ['attach', 'f8475127'],
+      hideFromUser: true,
     });
+  });
+
+  it('opts out of other extensions typing into the terminal (e.g. Python venv auto-activation)', () => {
+    const o = attachTerminalOptions({ shortId: 'f8475127', name: 'n', cwd: '/w', claudePath: 'claude', cwdExists: true });
+    expect(o.hideFromUser).toBe(true);
   });
 
   it('omits a cwd that no longer exists', () => {
