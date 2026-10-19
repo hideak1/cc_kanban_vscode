@@ -128,19 +128,19 @@ describe('Controller.refresh', () => {
     await s.c.refresh();
     s.failList(new Error('timeout'));
     await s.c.refresh();
-    expect(s.lastState().error).toBe('状态可能过期：timeout');
+    expect(s.lastState().error).toBe('Status may be out of date: timeout');
     expect(cardIds(s)).toEqual([[], ['s:aaaaaaaa']]);
   });
 
   it('reports a missing claude binary', async () => {
     const s = setup({ noCli: true });
     await s.c.refresh();
-    expect(s.lastState().error).toBe('找不到 claude 命令，请在设置 claudeKanban.claudePath 中指定路径');
+    expect(s.lastState().error).toBe('Cannot find the claude command. Set its path in the claudeKanban.claudePath setting.');
   });
 
   it('tells the user when a corrupt board was reset', () => {
     const s = setup({ recovered: true });
-    expect(s.calls).toContain('info 看板数据文件损坏，已备份并重置为空看板');
+    expect(s.calls).toContain('info The board data file was corrupt. It was backed up and the board was reset.');
   });
 
   it('counts waiting sessions', async () => {
@@ -157,7 +157,7 @@ describe('Controller.handle', () => {
     await s.c.handle({ type: 'attach', cardId: 's:aaaaaaaa' });
     await s.c.handle({ type: 'attach', cardId: 's:bbbbbbbb' });
     expect(s.calls).toContain('attach aaaaaaaa|name-aaaaaaaa|/w/aaaaaaaa');
-    expect(s.calls).toContain('info 这个 session 在别的终端里直接运行，无法 attach');
+    expect(s.calls).toContain('info This session runs directly in another terminal and cannot be attached.');
   });
 
   it('moves cards and persists', async () => {
@@ -182,7 +182,7 @@ describe('Controller.handle', () => {
     s.setSessions([session('f8475127', { status: null })]);
     await s.c.refresh();
     expect(cardIds(s)).toEqual([[], ['s:f8475127']]);
-    expect(s.lastState().view.columns[1]!.cards[0]!.badge).toEqual({ label: '启动中', tone: 'running' });
+    expect(s.lastState().view.columns[1]!.cards[0]!.badge).toEqual({ label: 'Starting', tone: 'running' });
   });
 
   it('a second window does not prune a card the first window just started', async () => {
@@ -218,7 +218,7 @@ describe('Controller.handle', () => {
     await s.c.handle({ type: 'createDraft', title: 'T', prompt: 'P', cwd: '/w' });
     s.setStart(new Error('Workspace not trusted.'));
     await s.c.handle({ type: 'startDraft', draftId: 'id1' });
-    expect(s.calls).toContain('error 启动失败：Workspace not trusted.');
+    expect(s.calls).toContain('error Could not start the session: Workspace not trusted.');
     expect(cardIds(s)).toEqual([['d:id1']]);
   });
 
@@ -246,7 +246,7 @@ describe('Controller.handle', () => {
     await s.c.handle({ type: 'move', cardId: 's:aaaaaaaa', toColumnId: 'c-id1', index: 0 });
     s.answerConfirm(false);
     await s.c.handle({ type: 'deleteColumn', columnId: 'c-id1' });
-    expect(s.calls).toContain('confirm 删除列「Doing」？其中 1 张卡片会移回未归类。');
+    expect(s.calls).toContain('confirm Delete column "Doing"? Its card moves back to Inbox.');
     expect(cardIds(s)).toEqual([[], ['s:aaaaaaaa']]);
     s.answerConfirm(true);
     await s.c.handle({ type: 'deleteColumn', columnId: 'c-id1' });
@@ -291,7 +291,7 @@ describe('Controller.handle', () => {
     await s.c.refresh();
     s.failStop(new Error('no such job'));
     await s.c.handle({ type: 'complete', cardId: 's:aaaaaaaa' });
-    expect(s.calls).toContain('error 停止失败：no such job');
+    expect(s.calls).toContain('error Could not stop the session: no such job');
     expect(doneIds(s)).toEqual(['s:aaaaaaaa']);
   });
 
@@ -300,7 +300,7 @@ describe('Controller.handle', () => {
     await s.c.refresh();
     await s.c.handle({ type: 'resume', cardId: 's:aaaaaaaa' });
     expect(s.calls.slice(-2)).toEqual(['respawn aaaaaaaa', 'list']);
-    expect(s.lastState().view.columns[0]!.cards[0]!.badge).toEqual({ label: '启动中', tone: 'running' });
+    expect(s.lastState().view.columns[0]!.cards[0]!.badge).toEqual({ label: 'Starting', tone: 'running' });
   });
 
   it('toggles a column collapsed and persists it', async () => {
@@ -323,7 +323,7 @@ describe('Controller.handle', () => {
   it('applies a board changed in another window', async () => {
     const s = setup({ sessions: [session('aaaaaaaa')] });
     await s.c.refresh();
-    s.c.setBoard({ ...defaultBoard(), columns: [{ id: 'inbox', title: '未归类', cardIds: [], collapsed: false }, { id: 'c-x', title: 'X', cardIds: ['s:aaaaaaaa'], collapsed: false }] });
+    s.c.setBoard({ ...defaultBoard(), columns: [{ id: 'inbox', title: 'Inbox', cardIds: [], collapsed: false }, { id: 'c-x', title: 'X', cardIds: ['s:aaaaaaaa'], collapsed: false }] });
     expect(cardIds(s)).toEqual([[], ['s:aaaaaaaa']]);
   });
 });

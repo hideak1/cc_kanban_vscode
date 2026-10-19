@@ -1,11 +1,10 @@
 // Manual integration check against the real `claude` CLI (not part of `npm test`).
-// Run: npm run test:real   — starts one tiny background session in ~/project, then stops and removes it.
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+// Run: npm run test:real [folder]  — starts one tiny background session in [folder] (default: the current
+// directory, which must be a folder Claude Code already trusts), then stops, respawns, and removes it.
 import { buildView, createDraft, defaultBoard, promoteDraft, reconcile, sessionCardId } from '../../src/boardModel';
 import { CliClient, nodeRunner } from '../../src/cliClient';
 
-const cwd = process.argv[2] ?? join(homedir(), 'project');
+const cwd = process.argv[2] ?? process.cwd();
 const cli = new CliClient(nodeRunner, process.env.CLAUDE_BIN ?? 'claude');
 
 const before = await cli.listSessions();

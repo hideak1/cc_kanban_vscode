@@ -54,11 +54,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           canSelectFolders: true,
           canSelectFiles: false,
           canSelectMany: false,
-          openLabel: '选择工作目录',
+          openLabel: 'Choose working folder',
         });
         return picked?.[0]?.fsPath ?? null;
       },
-      confirm: async (message) => (await vscode.window.showWarningMessage(message, { modal: true }, '删除')) === '删除',
+      confirm: async (message) => (await vscode.window.showWarningMessage(message, { modal: true }, 'Delete')) === 'Delete',
       showError: (m) => void vscode.window.showErrorMessage(m),
       showInfo: (m) => void vscode.window.showInformationMessage(m),
     },
@@ -70,10 +70,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   status.command = 'claudeKanban.open';
-  status.tooltip = '打开 Claude Kanban';
+  status.tooltip = 'Open Claude Kanban';
   const updateStatus = () => {
     const n = controller.waitingCount;
-    status.text = n > 0 ? `$(bell-dot) Claude: ${n} 个等待输入` : '$(layout) Claude';
+    status.text = n > 0 ? `$(bell-dot) Claude: ${n} need${n === 1 ? 's' : ''} input` : '$(layout) Claude';
     status.backgroundColor = n > 0 ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;
     status.show();
   };

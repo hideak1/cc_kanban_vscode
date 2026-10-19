@@ -2,8 +2,8 @@ import type { Board, Column, Draft, Session, Tone, View, ViewCard } from './type
 
 export const INBOX_ID = 'inbox';
 export const DONE_ID = 'done';
-export const INBOX_TITLE = '未归类';
-export const DONE_TITLE = '已完成';
+export const INBOX_TITLE = 'Inbox';
+export const DONE_TITLE = 'Done';
 
 export function defaultBoard(): Board {
   return {
@@ -31,17 +31,17 @@ const isBuiltIn = (columnId: string) => columnId === INBOX_ID || columnId === DO
  * A session that ends its turn with a question is `idle` + `blocked`, so `state` decides first.
  */
 export function sessionBadge(s: Session, justStarted: boolean): { label: string; tone: Tone } {
-  if (s.status === 'waiting') return { label: '等待输入', tone: 'waiting' };
-  if (s.state === 'blocked') return { label: '等待你回复', tone: 'waiting' };
-  if (s.status === null && justStarted) return { label: '启动中', tone: 'running' };
+  if (s.status === 'waiting') return { label: 'Needs input', tone: 'waiting' };
+  if (s.state === 'blocked') return { label: 'Waiting for you', tone: 'waiting' };
+  if (s.status === null && justStarted) return { label: 'Starting', tone: 'running' };
   if (s.state === 'working' || (s.state === null && (s.status === 'busy' || s.status === 'working'))) {
-    return { label: '运行中', tone: 'running' };
+    return { label: 'Running', tone: 'running' };
   }
-  if (s.state === 'done' || (s.state === null && s.status === 'done')) return { label: '待查看', tone: 'review' };
-  if (s.state === 'failed') return { label: '已中断', tone: 'failed' };
-  if (s.state === 'stopped' || (s.state === null && s.status === null)) return { label: '已停止', tone: 'stopped' };
-  if (s.state === null && s.status === 'idle') return { label: '空闲', tone: 'idle' };
-  return { label: s.state ?? s.status ?? '未知', tone: 'unknown' };
+  if (s.state === 'done' || (s.state === null && s.status === 'done')) return { label: 'Ready for review', tone: 'review' };
+  if (s.state === 'failed') return { label: 'Interrupted', tone: 'failed' };
+  if (s.state === 'stopped' || (s.state === null && s.status === null)) return { label: 'Stopped', tone: 'stopped' };
+  if (s.state === null && s.status === 'idle') return { label: 'Idle', tone: 'idle' };
+  return { label: s.state ?? s.status ?? 'Unknown', tone: 'unknown' };
 }
 
 function folderOf(cwd: string): string {

@@ -18,7 +18,7 @@ import type { CliClient } from './cliClient';
 import type { Board, Session, ToHost, ToWebview } from './types';
 
 const START_GRACE_MS = 60_000;
-const NO_CLI_ERROR = '找不到 claude 命令，请在设置 claudeKanban.claudePath 中指定路径';
+const NO_CLI_ERROR = 'Cannot find the claude command. Set its path in the claudeKanban.claudePath setting.';
 
 export interface Ui {
   attach(shortId: string, name: string, cwd: string): void;
@@ -53,7 +53,7 @@ export class Controller {
     this.cli = d.cli;
     const { board, recovered } = d.store.load();
     this.board = board;
-    if (recovered) d.ui.showInfo('看板数据文件损坏，已备份并重置为空看板');
+    if (recovered) d.ui.showInfo('The board data file was corrupt. It was backed up and the board was reset.');
   }
 
   get waitingCount(): number {
@@ -80,7 +80,7 @@ export class Controller {
       this.sessions = await this.cli.listSessions();
       this.error = null;
     } catch (e) {
-      this.error = `状态可能过期：${messageOf(e)}`;
+      this.error = `Status may be out of date: ${messageOf(e)}`;
       pruneMissing = false;
     }
     const startedAfter = this.d.now() - START_GRACE_MS;
@@ -99,7 +99,7 @@ export class Controller {
       case 'attach': {
         const s = this.sessionFor(msg.cardId);
         if (!s) return;
-        if (s.kind === 'interactive') this.d.ui.showInfo('这个 session 在别的终端里直接运行，无法 attach');
+        if (s.kind === 'interactive') this.d.ui.showInfo('This session runs directly in another terminal and cannot be attached.');
         else this.d.ui.attach(s.shortId, s.name, s.cwd);
         return;
       }
@@ -109,7 +109,7 @@ export class Controller {
         try {
           await this.cli.stopSession(s.shortId);
         } catch (e) {
-          this.d.ui.showError(`停止失败：${messageOf(e)}`);
+          this.d.ui.showError(`Could not stop the session: ${messageOf(e)}`);
         }
         await this.refresh();
         return;
@@ -122,7 +122,7 @@ export class Controller {
           try {
             await this.cli.stopSession(s.shortId);
           } catch (e) {
-            this.d.ui.showError(`停止失败：${messageOf(e)}`);
+            this.d.ui.showError(`Could not stop the session: ${messageOf(e)}`);
           }
           await this.refresh();
         }
@@ -135,7 +135,7 @@ export class Controller {
         try {
           await this.cli.respawnSession(s.shortId);
         } catch (e) {
-          this.d.ui.showError(`恢复失败：${messageOf(e)}`);
+          this.d.ui.showError(`Could not resume the session: ${messageOf(e)}`);
         }
         await this.refresh();
         return;
@@ -153,7 +153,7 @@ export class Controller {
         const col = this.board.columns.find((c) => c.id === msg.columnId);
         if (!col) return;
         if (col.cardIds.length > 0) {
-          const ok = await this.d.ui.confirm(`删除列「${col.title}」？其中 ${col.cardIds.length} 张卡片会移回未归类。`);
+          const ok = await this.d.ui.confirm(`Delete column "${col.title}"? ${col.cardIds.length === 1 ? 'Its card moves' : `Its ${col.cardIds.length} cards move`} back to Inbox.`);
           if (!ok) return;
         }
         this.commit(deleteColumn(this.board, msg.columnId));
@@ -193,7 +193,7 @@ export class Controller {
       const shortId = await this.cli.startSession({ name: draft.title, prompt, cwd: draft.cwd });
       this.commit(promoteDraft(this.board, draftId, shortId, this.d.now()));
     } catch (e) {
-      this.d.ui.showError(`启动失败：${messageOf(e)}`);
+      this.d.ui.showError(`Could not start the session: ${messageOf(e)}`);
       return;
     } finally {
       this.starting.delete(draftId);

@@ -60,12 +60,12 @@ function toolbar(view: View): HTMLElement {
     h(
       'div',
       { class: 'toolbar-actions' },
-      button('新建 Task', () => {
+      button('New task', () => {
         composerOpen = true;
         render();
         document.querySelector<HTMLInputElement>('#composer-title')?.focus();
       }, 'btn btn-primary'),
-      button('新建列', () => {
+      button('New column', () => {
         addingColumn = true;
         render();
         document.querySelector<HTMLInputElement>('#new-column')?.focus();
@@ -76,11 +76,11 @@ function toolbar(view: View): HTMLElement {
 
 function composer(defaultCwd: string): HTMLElement {
   const cwd = composerCwd || defaultCwd;
-  const title = h('input', { id: 'composer-title', class: 'input', placeholder: '要做什么，例如：修复登录页的重定向问题' });
+  const title = h('input', { id: 'composer-title', class: 'input', placeholder: 'What should Claude do? e.g. Fix the login redirect' });
   const prompt = h('textarea', {
     class: 'input',
     rows: '4',
-    placeholder: '交给 Claude 的指令。留空则直接用上面的标题。',
+    placeholder: 'Instructions for Claude. Leave empty to use the title.',
   });
   const submit = () => {
     if (!title.value.trim()) {
@@ -102,17 +102,17 @@ function composer(defaultCwd: string): HTMLElement {
   });
   return h(
     'section',
-    { class: 'composer', 'aria-label': '新建 Task' },
+    { class: 'composer', 'aria-label': 'New task' },
     title,
     prompt,
     h(
       'div',
       { class: 'composer-row' },
-      h('span', { class: 'composer-cwd', title: cwd, text: `在 ${cwd} 中运行` }),
-      button('换目录', () => send({ type: 'pickCwd' }), 'btn btn-link'),
+      h('span', { class: 'composer-cwd', title: cwd, text: `Runs in ${cwd}` }),
+      button('Change folder', () => send({ type: 'pickCwd' }), 'btn btn-link'),
       h('span', { class: 'spacer' }),
-      button('取消', closeComposer),
-      button('创建', submit, 'btn btn-primary'),
+      button('Cancel', closeComposer),
+      button('Create', submit, 'btn btn-primary'),
     ),
   );
 }
@@ -132,15 +132,15 @@ function card(c: ViewCard, now: number, inDone: boolean): HTMLElement {
     draggable: 'true',
     tabindex: '0',
     'data-card': c.id,
-    title: c.type === 'session' && !c.interactive ? '点击在终端中打开这个 session' : '',
+    title: c.type === 'session' && !c.interactive ? 'Click to open this session in a terminal' : '',
   });
 
   const meta = h(
     'div',
     { class: 'card-meta' },
-    c.badge ? h('span', { class: 'status', text: c.badge.label }) : h('span', { class: 'status', text: '草稿' }),
+    c.badge ? h('span', { class: 'status', text: c.badge.label }) : h('span', { class: 'status', text: 'Draft' }),
     h('span', { class: 'folder', title: c.cwd, text: c.folder }),
-    c.interactive ? h('span', { class: 'tag', text: '终端内' }) : null,
+    c.interactive ? h('span', { class: 'tag', text: 'Terminal' }) : null,
     h('span', { class: 'age', text: formatAge(c.startedAt, now) }),
   );
 
@@ -148,13 +148,13 @@ function card(c: ViewCard, now: number, inDone: boolean): HTMLElement {
   if (c.type === 'draft') {
     const draftId = c.id.slice(2);
     actions.append(
-      button('启动', () => send({ type: 'startDraft', draftId }), 'btn btn-primary btn-small'),
-      button('删除', () => send({ type: 'deleteDraft', draftId }), 'btn btn-small'),
+      button('Start', () => send({ type: 'startDraft', draftId }), 'btn btn-primary btn-small'),
+      button('Delete', () => send({ type: 'deleteDraft', draftId }), 'btn btn-small'),
     );
   } else {
-    if (c.canResume) actions.append(button('恢复', () => send({ type: 'resume', cardId: c.id }), 'btn btn-primary btn-small'));
-    if (c.canStop) actions.append(button('停止', () => send({ type: 'stop', cardId: c.id }), 'btn btn-small'));
-    if (!inDone) actions.append(button('完成', () => send({ type: 'complete', cardId: c.id }), 'btn btn-small'));
+    if (c.canResume) actions.append(button('Resume', () => send({ type: 'resume', cardId: c.id }), 'btn btn-primary btn-small'));
+    if (c.canStop) actions.append(button('Stop', () => send({ type: 'stop', cardId: c.id }), 'btn btn-small'));
+    if (!inDone) actions.append(button('Complete', () => send({ type: 'complete', cardId: c.id }), 'btn btn-small'));
   }
 
   el.append(h('h3', { class: 'card-title', text: c.title }));
@@ -202,7 +202,7 @@ function slotFor(list: HTMLElement, y: number): number {
 function columnHeader(col: ViewColumn): HTMLElement {
   const header = h('header', { class: 'column-header' });
   if (renaming === col.id) {
-    const input = h('input', { class: 'input input-inline', value: col.title, 'aria-label': '列名' });
+    const input = h('input', { class: 'input input-inline', value: col.title, 'aria-label': 'Column name' });
     const done = (save: boolean) => {
       if (renaming !== col.id) return;
       renaming = null;
@@ -223,18 +223,18 @@ function columnHeader(col: ViewColumn): HTMLElement {
   }
   const title = h('h2', { class: 'column-title', text: col.title });
   if (!col.builtIn) {
-    title.title = '双击改名';
+    title.title = 'Double-click to rename';
     title.addEventListener('dblclick', () => {
       renaming = col.id;
       render();
     });
   }
   const collapse = button('⌄', () => send({ type: 'toggleColumn', columnId: col.id }), 'btn btn-icon collapse');
-  collapse.title = '折叠这一列';
-  collapse.setAttribute('aria-label', `折叠「${col.title}」`);
+  collapse.title = 'Collapse column';
+  collapse.setAttribute('aria-label', `Collapse "${col.title}"`);
   header.append(collapse, title, h('span', { class: 'count', text: String(col.cards.length) }));
   if (!col.builtIn) {
-    header.append(button('删除列', () => send({ type: 'deleteColumn', columnId: col.id }), 'btn btn-icon btn-delete'));
+    header.append(button('Delete column', () => send({ type: 'deleteColumn', columnId: col.id }), 'btn btn-icon btn-delete'));
   }
   return header;
 }
@@ -269,11 +269,11 @@ function collapsedColumn(col: ViewColumn): HTMLElement {
       'data-column': col.id,
       role: 'button',
       tabindex: '0',
-      title: `展开「${col.title}」`,
-      'aria-label': `展开「${col.title}」，${col.cards.length} 张卡片`,
+      title: `Expand "${col.title}"`,
+      'aria-label': `Expand "${col.title}", ${col.cards.length} card${col.cards.length === 1 ? '' : 's'}`,
     },
     h('span', { class: 'count', text: String(col.cards.length) }),
-    col.waitingCount > 0 ? h('span', { class: 'waiting-dot', title: '等待输入', text: String(col.waitingCount) }) : null,
+    col.waitingCount > 0 ? h('span', { class: 'waiting-dot', title: 'Needs input', text: String(col.waitingCount) }) : null,
     h('h2', { class: 'column-title', text: col.title }),
   );
   const toggle = () => send({ type: 'toggleColumn', columnId: col.id });
@@ -294,7 +294,7 @@ function column(col: ViewColumn, now: number): HTMLElement {
   const list = h('div', { class: 'card-list' });
   for (const c of col.cards) list.append(card(c, now, col.id === 'done'));
   if (col.cards.length === 0) {
-    const hint = col.id === 'inbox' ? '新开的 session 会先出现在这里' : col.id === 'done' ? '点卡片上的「完成」，或把卡片拖到这里' : '把卡片拖到这里';
+    const hint = col.id === 'inbox' ? 'New sessions appear here first' : col.id === 'done' ? 'Click Complete on a card, or drag cards here' : 'Drag cards here';
     list.append(h('p', { class: 'empty', text: hint }));
   }
 
@@ -315,7 +315,7 @@ function column(col: ViewColumn, now: number): HTMLElement {
 }
 
 function newColumnForm(): HTMLElement {
-  const input = h('input', { id: 'new-column', class: 'input', placeholder: '列名，例如：进行中' });
+  const input = h('input', { id: 'new-column', class: 'input', placeholder: 'Column name, e.g. In progress' });
   const done = (save: boolean) => {
     if (!addingColumn) return;
     addingColumn = false;
@@ -367,7 +367,7 @@ window.addEventListener('message', (e: MessageEvent<ToWebview>) => {
     composerCwd = m.cwd;
     const el = document.querySelector<HTMLElement>('.composer-cwd');
     if (el) {
-      el.textContent = `在 ${m.cwd} 中运行`;
+      el.textContent = `Runs in ${m.cwd}`;
       el.title = m.cwd;
     }
   }

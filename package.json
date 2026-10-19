@@ -1,14 +1,36 @@
 {
   "name": "claude-kanban",
   "displayName": "Claude Kanban",
-  "description": "A kanban board for your Claude Code sessions: organize, see live status, click to attach.",
+  "description": "A kanban board for your Claude Code sessions: organize them in columns, see live status, click a card to attach.",
   "version": "0.1.0",
-  "publisher": "local",
+  "publisher": "hideak1",
   "license": "MIT",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hideak1/cc_kanban_vscode.git"
+  },
+  "homepage": "https://github.com/hideak1/cc_kanban_vscode#readme",
+  "bugs": {
+    "url": "https://github.com/hideak1/cc_kanban_vscode/issues"
+  },
+  "keywords": [
+    "claude",
+    "claude code",
+    "kanban",
+    "agents",
+    "sessions",
+    "ai"
+  ],
+  "galleryBanner": {
+    "color": "#1e1f24",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
+    "AI",
     "Other"
   ],
   "activationEvents": [
@@ -39,7 +61,7 @@
     "test": "vitest run",
     "test:e2e": "npm run build && node test/e2e/run.mjs",
     "test:real": "esbuild test/integration/realCli.ts --bundle --platform=node --format=esm --log-level=warning --outfile=.vscode-test/realCli.mjs && node .vscode-test/realCli.mjs",
-    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository --skip-license"
+    "package": "npm run build && vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

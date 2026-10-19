@@ -3,4 +3,5 @@
 !package.json
 !README.md
 !LICENSE
+!media/icon.png
 dist/**/*.map

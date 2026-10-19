@@ -17,9 +17,9 @@ beforeEach(() => {
 const sample: Board = {
   version: 1,
   columns: [
-    { id: 'inbox', title: '未归类', cardIds: ['s:aaaaaaaa', 'd:x1'], collapsed: false },
+    { id: 'inbox', title: 'Inbox', cardIds: ['s:aaaaaaaa', 'd:x1'], collapsed: false },
     { id: 'c-1', title: 'Doing', cardIds: ['s:bbbbbbbb'], collapsed: true },
-    { id: 'done', title: '已完成', cardIds: ['s:cccccccc'], collapsed: true },
+    { id: 'done', title: 'Done', cardIds: ['s:cccccccc'], collapsed: true },
   ],
   drafts: { x1: { title: 'T', prompt: 'P', cwd: '/w' } },
   starting: { 's:bbbbbbbb': 1790694099011 },
@@ -89,20 +89,20 @@ describe('normalizeBoard', () => {
       drafts: {},
     });
     expect(titles(out)).toEqual([
-      ['inbox', '未归类', false],
+      ['inbox', 'Inbox', false],
       ['c-1', 'A', false],
-      ['done', '已完成', false],
+      ['done', 'Done', false],
     ]);
     expect(titles(normalizeBoard({ version: 1, columns: [], drafts: {} }))).toEqual([
-      ['inbox', '未归类', false],
-      ['done', '已完成', true],
+      ['inbox', 'Inbox', false],
+      ['done', 'Done', true],
     ]);
   });
 
   it('migrates the old hidden list into the done column', () => {
     const out = normalizeBoard({
       version: 1,
-      columns: [{ id: 'inbox', title: '未归类', cardIds: ['s:aaaaaaaa'] }],
+      columns: [{ id: 'inbox', title: 'Inbox', cardIds: ['s:aaaaaaaa'] }],
       drafts: {},
       hidden: ['s:cccccccc', 's:aaaaaaaa', 7],
     });
@@ -117,7 +117,7 @@ describe('normalizeBoard', () => {
     const out = normalizeBoard({
       version: 1,
       columns: [
-        { id: 'inbox', title: '未归类', cardIds: ['s:aaaaaaaa', 'junk', 'd:missing', 'd:x1', 42] },
+        { id: 'inbox', title: 'Inbox', cardIds: ['s:aaaaaaaa', 'junk', 'd:missing', 'd:x1', 42] },
         { id: 'c-1', title: 'A', cardIds: ['s:aaaaaaaa', 's:bbbbbbbb'] },
       ],
       drafts: { x1: { title: 'T', prompt: 'P', cwd: '/w' }, bad: { title: 1 } },
@@ -133,10 +133,10 @@ describe('normalizeBoard', () => {
   it('drops columns without a string id or title and duplicate column ids', () => {
     const out = normalizeBoard({
       version: 1,
-      columns: [{ id: 'inbox', title: '未归类', cardIds: [] }, { title: 'x' }, { id: 'c-1', title: 'A', cardIds: [] }, { id: 'c-1', title: 'B', cardIds: [] }],
+      columns: [{ id: 'inbox', title: 'Inbox', cardIds: [] }, { title: 'x' }, { id: 'c-1', title: 'A', cardIds: [] }, { id: 'c-1', title: 'B', cardIds: [] }],
       drafts: {},
     });
-    expect(out?.columns.map((c) => c.title)).toEqual(['未归类', 'A', '已完成']);
+    expect(out?.columns.map((c) => c.title)).toEqual(['Inbox', 'A', 'Done']);
   });
 
   it('keeps numeric start marks for session cards and defaults a missing map', () => {

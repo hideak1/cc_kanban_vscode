@@ -44,9 +44,9 @@ function board(
   return {
     version: 1,
     columns: [
-      { id: INBOX_ID, title: '未归类', cardIds: cols.inbox ?? [], collapsed: false },
+      { id: INBOX_ID, title: 'Inbox', cardIds: cols.inbox ?? [], collapsed: false },
       ...(cols.middle ?? []).map(([id, cardIds]) => ({ id, title: id.toUpperCase(), cardIds, collapsed: false })),
-      { id: DONE_ID, title: '已完成', cardIds: cols.done ?? [], collapsed: true },
+      { id: DONE_ID, title: 'Done', cardIds: cols.done ?? [], collapsed: true },
     ],
     drafts: {},
     starting: {},
@@ -62,8 +62,8 @@ describe('defaultBoard', () => {
     expect(defaultBoard()).toEqual({
       version: 1,
       columns: [
-        { id: 'inbox', title: '未归类', cardIds: [], collapsed: false },
-        { id: 'done', title: '已完成', cardIds: [], collapsed: true },
+        { id: 'inbox', title: 'Inbox', cardIds: [], collapsed: false },
+        { id: 'done', title: 'Done', cardIds: [], collapsed: true },
       ],
       drafts: {},
       starting: {},
@@ -74,23 +74,23 @@ describe('defaultBoard', () => {
 describe('sessionBadge', () => {
   const s = (over: Partial<Session>) => session('aaaaaaaa', over);
   it.each([
-    ['blocked task (Claude asked a question)', s({ status: 'idle', state: 'blocked' }), '等待你回复', 'waiting'],
-    ['permission / input prompt', s({ status: 'waiting', state: null, kind: 'interactive' }), '等待输入', 'waiting'],
-    ['working', s({ status: 'busy', state: 'working' }), '运行中', 'running'],
-    ['interactive busy', s({ status: 'busy', state: null, kind: 'interactive' }), '运行中', 'running'],
-    ['finished turn, ready for review', s({ status: 'idle', state: 'done' }), '待查看', 'review'],
-    ['done while process stopped', s({ status: null, state: 'done' }), '待查看', 'review'],
-    ['interrupted by shutdown', s({ status: null, state: 'failed' }), '已中断', 'failed'],
-    ['stopped state', s({ status: null, state: 'stopped' }), '已停止', 'stopped'],
-    ['no process, no state', s({ status: null, state: null }), '已停止', 'stopped'],
-    ['interactive idle', s({ status: 'idle', state: null, kind: 'interactive' }), '空闲', 'idle'],
+    ['blocked task (Claude asked a question)', s({ status: 'idle', state: 'blocked' }), 'Waiting for you', 'waiting'],
+    ['permission / input prompt', s({ status: 'waiting', state: null, kind: 'interactive' }), 'Needs input', 'waiting'],
+    ['working', s({ status: 'busy', state: 'working' }), 'Running', 'running'],
+    ['interactive busy', s({ status: 'busy', state: null, kind: 'interactive' }), 'Running', 'running'],
+    ['finished turn, ready for review', s({ status: 'idle', state: 'done' }), 'Ready for review', 'review'],
+    ['done while process stopped', s({ status: null, state: 'done' }), 'Ready for review', 'review'],
+    ['interrupted by shutdown', s({ status: null, state: 'failed' }), 'Interrupted', 'failed'],
+    ['stopped state', s({ status: null, state: 'stopped' }), 'Stopped', 'stopped'],
+    ['no process, no state', s({ status: null, state: null }), 'Stopped', 'stopped'],
+    ['interactive idle', s({ status: 'idle', state: null, kind: 'interactive' }), 'Idle', 'idle'],
     ['unknown future state', s({ status: 'idle', state: 'paused' }), 'paused', 'unknown'],
   ] as const)('%s → %s', (_name, sess, label, tone) => {
     expect(sessionBadge(sess, false)).toEqual({ label, tone });
   });
 
-  it('shows 启动中 for a just-started session whose process is not reported yet', () => {
-    expect(sessionBadge(session('aaaaaaaa', { status: null, state: null }), true)).toEqual({ label: '启动中', tone: 'running' });
+  it('shows Starting for a just-started session whose process is not reported yet', () => {
+    expect(sessionBadge(session('aaaaaaaa', { status: null, state: null }), true)).toEqual({ label: 'Starting', tone: 'running' });
   });
 
   it('a waiting prompt wins over a just-started mark', () => {
@@ -162,7 +162,7 @@ describe('buildView', () => {
     expect(a).toMatchObject({ type: 'session', folder: 'proj-aaaaaaaa', badge: { tone: 'waiting' }, canStop: true, canResume: false });
     const [bCard, cCard] = view.columns[1]!.cards;
     expect(bCard).toMatchObject({ interactive: true, detail: 'input needed', canStop: false, canResume: false });
-    expect(cCard).toMatchObject({ badge: { label: '已中断', tone: 'failed' }, canStop: false, canResume: true });
+    expect(cCard).toMatchObject({ badge: { label: 'Interrupted', tone: 'failed' }, canStop: false, canResume: true });
   });
 });
 

@@ -59,7 +59,7 @@ export interface ViewCard {
 export interface ViewColumn {
   id: string;
   title: string;
-  /** Built-in columns (未归类, 已完成) cannot be renamed or deleted. */
+  /** Built-in columns (Inbox, Done) cannot be renamed or deleted. */
   builtIn: boolean;
   collapsed: boolean;
   waitingCount: number;
