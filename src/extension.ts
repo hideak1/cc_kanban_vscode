@@ -70,7 +70,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   status.command = 'claudeKanban.open';
-  status.tooltip = 'Open Claude Kanban';
+  status.tooltip = 'Open Kanban for Claude Code';
   const updateStatus = () => {
     const n = controller.waitingCount;
     status.text = n > 0 ? `$(bell-dot) Claude: ${n} need${n === 1 ? 's' : ''} input` : '$(layout) Claude';

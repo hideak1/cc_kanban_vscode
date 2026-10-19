@@ -33,7 +33,7 @@ export class BoardPanel {
     onVisible: () => void,
   ) {
     const dist = vscode.Uri.joinPath(extensionUri, 'dist');
-    this.panel = vscode.window.createWebviewPanel('claudeKanban', 'Claude Kanban', vscode.ViewColumn.Active, {
+    this.panel = vscode.window.createWebviewPanel('claudeKanban', 'Kanban for Claude Code', vscode.ViewColumn.Active, {
       enableScripts: true,
       retainContextWhenHidden: true,
       localResourceRoots: [dist],
@@ -41,7 +41,7 @@ export class BoardPanel {
     this.panel.webview.html = this.html(dist);
     this.panel.webview.onDidReceiveMessage((m: ToHost) => {
       onMessage(m).catch((e: unknown) => {
-        void vscode.window.showErrorMessage(`Claude Kanban: ${e instanceof Error ? e.message : String(e)}`);
+        void vscode.window.showErrorMessage(`Kanban for Claude Code: ${e instanceof Error ? e.message : String(e)}`);
       });
     });
     this.panel.onDidChangeViewState(() => {
@@ -58,13 +58,13 @@ export class BoardPanel {
     const script = webview.asWebviewUri(vscode.Uri.joinPath(dist, 'webview.js'));
     const style = webview.asWebviewUri(vscode.Uri.joinPath(dist, 'style.css'));
     return `<!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="${style}">
-<title>Claude Kanban</title>
+<title>Kanban for Claude Code</title>
 </head>
 <body>
 <div id="app"></div>
