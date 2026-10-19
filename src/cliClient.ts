@@ -98,20 +98,23 @@ export class CliClient {
   }
 }
 
-export async function resolveClaudePath(d: {
+/**
+ * Finds the claude CLI by checking files only — it never spawns a shell or `which`.
+ * Order: configured path → each PATH directory → well-known install locations
+ * (VS Code launched from the Dock often has a PATH without ~/.local/bin).
+ */
+export function resolveClaudePath(d: {
   configured: string;
-  exists: (p: string) => boolean;
-  which: () => Promise<string | null>;
-  /** Well-known install locations, checked when PATH lacks claude (e.g. VS Code launched from the Dock). */
+  pathEnv: string;
   candidates: string[];
-  loginShell: () => Promise<string | null>;
-}): Promise<string | null> {
-  if (d.configured && d.exists(d.configured)) return d.configured;
-  const onPath = await d.which();
-  if (onPath) return onPath;
-  const known = d.candidates.find((p) => d.exists(p));
-  if (known) return known;
-  return (await d.loginShell()) ?? null;
+  isExecutable: (p: string) => boolean;
+}): string | null {
+  if (d.configured && d.isExecutable(d.configured)) return d.configured;
+  const onPath = d.pathEnv
+    .split(':')
+    .filter(Boolean)
+    .map((dir) => `${dir.replace(/\/+$/, '')}/claude`);
+  return [...onPath, ...d.candidates].find((p) => d.isExecutable(p)) ?? null;
 }
 
 export const nodeRunner: Runner = (file, args, opts) =>

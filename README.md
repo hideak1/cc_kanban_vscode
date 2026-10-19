@@ -4,12 +4,12 @@ A kanban board for your [Claude Code](https://code.claude.com) sessions, right i
 
 ![Agent Session Kanban board](media/screenshot.png)
 
-All data comes from the official Claude Code CLI (`claude agents --json`, `claude --bg`, `claude attach`, `claude stop`, `claude respawn`). The extension does not read Claude Code's internal files or host sessions itself. Background sessions keep running when you close VS Code.
+Nothing runs until you open the board. All data comes from the official Claude Code CLI (`claude agents --json`, `claude --bg`, `claude attach`, `claude stop`, `claude respawn`). The extension does not read Claude Code's internal files or host sessions itself. Background sessions keep running when you close VS Code.
 
 ## Features
 
 - **Your columns.** **Inbox** (where new sessions land) and **Done** are built in. Add, rename (double-click), and delete your own columns. Drag cards between and within columns. Organizing never changes the session itself.
-- **Live status.** Running, **Waiting for you** (Claude asked you something), Needs input (a prompt or permission request), Ready for review (Claude finished its turn), Interrupted (stopped by a shutdown or crash), Stopped, Idle. The status bar shows how many sessions need you.
+- **Live status.** Running, **Waiting for you** (Claude asked you something), Needs input (a prompt or permission request), Ready for review (Claude finished its turn), Interrupted (stopped by a shutdown or crash), Stopped, Idle. Once the board has been opened, the status bar shows how many sessions need you.
 - **Click to attach.** A card opens `claude attach <id>` in a VS Code terminal. Closing the terminal only detaches. The session keeps running in the background.
 - **Collapsible columns.** Collapse any column to a narrow strip that still shows its card count and how many need input. You can drop cards onto a collapsed column, so it works as a place for sessions you don't want to look at.
 - **Card actions.** **Stop** stops the session process and keeps the card where it is. **Complete** moves the card to Done and stops the session if it is running. **Resume** brings a stopped or interrupted background session back with `claude respawn`, continuing the same conversation.
@@ -17,7 +17,7 @@ All data comes from the official Claude Code CLI (`claude agents --json`, `claud
 
 ## Requirements
 
-- [Claude Code](https://code.claude.com) installed and signed in. The extension finds `claude` on your `PATH`, in common install locations such as `~/.local/bin/claude`, or through your login shell. You can also set the path explicitly (see Settings).
+- [Claude Code](https://code.claude.com) installed and signed in. The extension finds `claude` on your `PATH` or in common install locations such as `~/.local/bin/claude` (it only checks files; it never runs a shell to look). You can also set the path explicitly (see Settings).
 - macOS or Linux.
 
 ## Usage
@@ -48,7 +48,7 @@ npm test            # unit tests (vitest)
 npm run typecheck
 npm run test:e2e    # smoke test in a real VS Code
 npm run test:real   # round-trip against the real claude CLI: starts one tiny session, then removes it
-npm run package     # builds agent-session-kanban-<version>.vsix
+npm run package     # builds agent-session-board-<version>.vsix
 ```
 
 ## License

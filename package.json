@@ -1,5 +1,5 @@
 {
-  "name": "agent-session-kanban",
+  "name": "agent-session-board",
   "displayName": "Agent Session Kanban",
   "description": "A kanban board for Claude Code sessions: sort them into columns, see live status, and click a card to attach in a terminal.",
   "version": "0.1.0",
@@ -34,7 +34,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onCommand:claudeKanban.open"
   ],
   "main": "./dist/extension.js",
   "contributes": {

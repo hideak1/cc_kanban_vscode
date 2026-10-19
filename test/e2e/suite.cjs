@@ -11,10 +11,23 @@ async function waitFor(check, timeoutMs) {
 }
 
 exports.run = async function run() {
-  const ext = vscode.extensions.getExtension('hideaki.agent-session-kanban');
-  assert.ok(ext, 'extension hideaki.agent-session-kanban is installed in the test host');
+  // Count every child process the extension host starts, so we can prove activation alone spawns nothing.
+  const cp = require('node:child_process');
+  const spawned = [];
+  for (const fn of ['spawn', 'execFile', 'exec', 'fork']) {
+    const original = cp[fn];
+    cp[fn] = function (file, ...rest) {
+      spawned.push(`${fn} ${file}`);
+      return original.call(this, file, ...rest);
+    };
+  }
+
+  const ext = vscode.extensions.getExtension('hideaki.agent-session-board');
+  assert.ok(ext, 'extension hideaki.agent-session-board is installed in the test host');
   await ext.activate();
   assert.ok(ext.isActive, 'extension activates');
+  await new Promise((r) => setTimeout(r, 3000));
+  assert.deepStrictEqual(spawned, [], 'activating the extension must not start any process');
 
   await vscode.commands.executeCommand('claudeKanban.open');
   const opened = await waitFor(
@@ -22,5 +35,5 @@ exports.run = async function run() {
     5000,
   );
   assert.ok(opened, 'a "Agent Session Kanban" tab is open after running the command');
-  console.log('e2e smoke: extension activated and board tab opened');
+  console.log(`e2e smoke: activation spawned nothing; board tab opened; processes after opening: ${spawned.length}`);
 };

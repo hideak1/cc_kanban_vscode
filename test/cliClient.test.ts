@@ -187,45 +187,35 @@ describe('CliClient', () => {
 });
 
 describe('resolveClaudePath', () => {
-  const base = {
-    configured: '',
-    exists: (_p: string) => false,
-    which: async () => null as string | null,
-    candidates: [] as string[],
-    loginShell: async () => null as string | null,
-  };
+  // The lookup never spawns a process (no shell, no `which`): it only checks files.
+  const base = { configured: '', pathEnv: '', candidates: [] as string[], isExecutable: (_p: string) => false };
 
-  it('finds claude in a well-known install location when PATH lacks it (VS Code launched from the Dock)', async () => {
-    let shellCalled = false;
-    const p = await resolveClaudePath({
-      ...base,
-      candidates: ['/Users/me/.local/bin/claude', '/opt/homebrew/bin/claude'],
-      exists: (x) => x === '/opt/homebrew/bin/claude',
-      loginShell: async () => {
-        shellCalled = true;
-        return null;
-      },
-    });
-    expect(p).toBe('/opt/homebrew/bin/claude');
-    expect(shellCalled).toBe(false);
-  });
-
-  it('prefers a configured path that exists', async () => {
-    const p = await resolveClaudePath({ ...base, configured: '/opt/claude', exists: (x) => x === '/opt/claude', which: async () => '/usr/bin/claude' });
+  it('prefers a configured path that is executable', () => {
+    const p = resolveClaudePath({ ...base, configured: '/opt/claude', pathEnv: '/usr/bin', isExecutable: () => true });
     expect(p).toBe('/opt/claude');
   });
 
-  it('ignores a configured path that does not exist and uses which', async () => {
-    const p = await resolveClaudePath({ ...base, configured: '/nope', which: async () => '/usr/bin/claude' });
-    expect(p).toBe('/usr/bin/claude');
+  it('ignores a configured path that is not executable and searches PATH in order', () => {
+    const p = resolveClaudePath({
+      ...base,
+      configured: '/nope',
+      pathEnv: '/usr/local/bin::/usr/bin',
+      isExecutable: (x) => x === '/usr/bin/claude' || x === '/usr/local/bin/claude',
+    });
+    expect(p).toBe('/usr/local/bin/claude');
   });
 
-  it('falls back to the login shell', async () => {
-    const p = await resolveClaudePath({ ...base, loginShell: async () => '/Users/me/.local/bin/claude' });
-    expect(p).toBe('/Users/me/.local/bin/claude');
+  it('falls back to well-known install locations when PATH lacks claude (VS Code launched from the Dock)', () => {
+    const p = resolveClaudePath({
+      ...base,
+      pathEnv: '/usr/bin:/bin',
+      candidates: ['/Users/me/.local/bin/claude', '/opt/homebrew/bin/claude'],
+      isExecutable: (x) => x === '/opt/homebrew/bin/claude',
+    });
+    expect(p).toBe('/opt/homebrew/bin/claude');
   });
 
-  it('returns null when nothing is found', async () => {
-    expect(await resolveClaudePath(base)).toBeNull();
+  it('returns null when nothing is found', () => {
+    expect(resolveClaudePath({ ...base, pathEnv: '/usr/bin', candidates: ['/x/claude'] })).toBeNull();
   });
 });
