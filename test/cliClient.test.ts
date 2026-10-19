@@ -8,21 +8,28 @@ import {
   type Runner,
 } from '../src/cliClient';
 
+// Shape of `claude agents --json --all` as of Claude Code 2.1.303.
 const AGENTS_FIXTURE = JSON.stringify([
   {
+    id: 'f8475127',
     sessionId: 'f8475127-0dbd-4aa5-ae3f-0ddd6eec0f45',
     name: 'kanban-probe',
     cwd: '/Users/me/project',
-    status: 'working',
+    status: 'idle',
+    state: 'blocked',
+    waitingFor: null,
     kind: 'background',
     pid: 10202,
     startedAt: 1790694099011,
   },
   {
+    id: null,
     sessionId: 'ab50d108-1111-2222-3333-444455556666',
     name: 'project-4e',
     cwd: '/Users/me/project/kaggle',
-    status: null,
+    status: 'waiting',
+    state: null,
+    waitingFor: 'input needed',
     kind: 'interactive',
     pid: null,
     startedAt: null,
@@ -58,7 +65,9 @@ describe('parseAgentsJson', () => {
         shortId: 'f8475127',
         name: 'kanban-probe',
         cwd: '/Users/me/project',
-        status: 'working',
+        status: 'idle',
+        state: 'blocked',
+        waitingFor: null,
         kind: 'background',
         pid: 10202,
         startedAt: 1790694099011,
@@ -68,12 +77,19 @@ describe('parseAgentsJson', () => {
         shortId: 'ab50d108',
         name: 'project-4e',
         cwd: '/Users/me/project/kaggle',
-        status: null,
+        status: 'waiting',
+        state: null,
+        waitingFor: 'input needed',
         kind: 'interactive',
         pid: null,
         startedAt: null,
       },
     ]);
+  });
+
+  it('prefers the CLI-provided short id when present', () => {
+    const [s] = parseAgentsJson(JSON.stringify([{ id: 'abc12345', sessionId: 'zzzzzzzz-1111' }]));
+    expect(s?.shortId).toBe('abc12345');
   });
 
   it('throws when the top level is not an array', () => {
@@ -93,7 +109,9 @@ describe('parseAgentsJson', () => {
 
   it('falls back to safe defaults for missing optional fields', () => {
     const [s] = parseAgentsJson(JSON.stringify([{ sessionId: 'abcdefgh-1' }]));
-    expect(s).toMatchObject({ name: 'abcdefgh', cwd: '', status: null, kind: 'unknown', pid: null, startedAt: null });
+    expect(s).toMatchObject({
+      name: 'abcdefgh', cwd: '', status: null, state: null, waitingFor: null, kind: 'unknown', pid: null, startedAt: null,
+    });
   });
 });
 
@@ -153,6 +171,12 @@ describe('CliClient', () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.message).toContain('Workspace not trusted');
     expect(err.message.length).toBeLessThanOrEqual(300);
+  });
+
+  it('respawnSession runs respawn <shortId>', async () => {
+    const { run, calls } = fakeRunner({ code: 0, stdout: '', stderr: '' });
+    await new CliClient(run, 'claude').respawnSession('f8475127');
+    expect(calls[0]?.args).toEqual(['respawn', 'f8475127']);
   });
 
   it('stopSession runs stop <shortId>', async () => {

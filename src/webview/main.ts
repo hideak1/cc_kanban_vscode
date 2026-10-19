@@ -125,7 +125,7 @@ function closeComposer(): void {
 
 /* ---------- board ---------- */
 
-function card(c: ViewCard, now: number): HTMLElement {
+function card(c: ViewCard, now: number, inDone: boolean): HTMLElement {
   const tone = c.badge?.tone ?? 'draft';
   const el = h('article', {
     class: `card tone-${tone}`,
@@ -152,12 +152,13 @@ function card(c: ViewCard, now: number): HTMLElement {
       button('删除', () => send({ type: 'deleteDraft', draftId }), 'btn btn-small'),
     );
   } else {
-    const live = c.badge && ['running', 'waiting', 'idle'].includes(c.badge.tone);
-    if (live && !c.interactive) actions.append(button('停止', () => send({ type: 'stop', cardId: c.id }), 'btn btn-small'));
-    actions.append(button('隐藏', () => send({ type: 'hide', cardId: c.id }), 'btn btn-small'));
+    if (c.canResume) actions.append(button('恢复', () => send({ type: 'resume', cardId: c.id }), 'btn btn-primary btn-small'));
+    if (c.canStop) actions.append(button('停止', () => send({ type: 'stop', cardId: c.id }), 'btn btn-small'));
+    if (!inDone) actions.append(button('完成', () => send({ type: 'complete', cardId: c.id }), 'btn btn-small'));
   }
 
   el.append(h('h3', { class: 'card-title', text: c.title }));
+  if (c.detail) el.append(h('p', { class: 'card-detail', text: c.detail }));
   if (c.prompt && c.prompt.trim() && c.prompt.trim() !== c.title) {
     el.append(h('p', { class: 'card-prompt', text: c.prompt }));
   }
@@ -221,43 +222,30 @@ function columnHeader(col: ViewColumn): HTMLElement {
     return header;
   }
   const title = h('h2', { class: 'column-title', text: col.title });
-  if (col.removable) {
+  if (!col.builtIn) {
     title.title = '双击改名';
     title.addEventListener('dblclick', () => {
       renaming = col.id;
       render();
     });
   }
-  header.append(title, h('span', { class: 'count', text: String(col.cards.length) }));
-  if (col.removable) {
-    header.append(button('删除列', () => send({ type: 'deleteColumn', columnId: col.id }), 'btn btn-icon'));
+  const collapse = button('⌄', () => send({ type: 'toggleColumn', columnId: col.id }), 'btn btn-icon collapse');
+  collapse.title = '折叠这一列';
+  collapse.setAttribute('aria-label', `折叠「${col.title}」`);
+  header.append(collapse, title, h('span', { class: 'count', text: String(col.cards.length) }));
+  if (!col.builtIn) {
+    header.append(button('删除列', () => send({ type: 'deleteColumn', columnId: col.id }), 'btn btn-icon btn-delete'));
   }
   return header;
 }
 
-function column(col: ViewColumn, now: number): HTMLElement {
-  const list = h('div', { class: 'card-list' });
-  for (const c of col.cards) list.append(card(c, now));
-  if (col.cards.length === 0) {
-    list.append(
-      h('p', {
-        class: 'empty',
-        text: col.removable ? '把卡片拖到这里' : '新开的 session 会先出现在这里',
-      }),
-    );
-  }
-
-  const el = h('section', { class: 'column', 'data-column': col.id }, columnHeader(col), list);
+function dropTarget(el: HTMLElement, columnId: string, indexAt: (y: number) => number, mark: (y: number) => void): void {
   el.addEventListener('dragover', (e) => {
     if (!dragging) return;
     e.preventDefault();
     clearMarkers();
     el.classList.add('is-target');
-    const slot = slotFor(list, e.clientY);
-    const cards = [...list.querySelectorAll<HTMLElement>('.card:not(.is-dragging)')];
-    const marker = h('div', { class: 'drop-marker' });
-    if (slot < cards.length) list.insertBefore(marker, cards[slot]!);
-    else list.append(marker);
+    mark(e.clientY);
   });
   el.addEventListener('dragleave', (e) => {
     if (!el.contains(e.relatedTarget as Node | null)) {
@@ -268,10 +256,61 @@ function column(col: ViewColumn, now: number): HTMLElement {
   el.addEventListener('drop', (e) => {
     if (!dragging) return;
     e.preventDefault();
-    const index = slotFor(list, e.clientY);
-    send({ type: 'move', cardId: dragging.cardId, toColumnId: col.id, index });
+    send({ type: 'move', cardId: dragging.cardId, toColumnId: columnId, index: indexAt(e.clientY) });
     clearMarkers();
   });
+}
+
+function collapsedColumn(col: ViewColumn): HTMLElement {
+  const el = h(
+    'section',
+    {
+      class: 'column is-collapsed',
+      'data-column': col.id,
+      role: 'button',
+      tabindex: '0',
+      title: `展开「${col.title}」`,
+      'aria-label': `展开「${col.title}」，${col.cards.length} 张卡片`,
+    },
+    h('span', { class: 'count', text: String(col.cards.length) }),
+    col.waitingCount > 0 ? h('span', { class: 'waiting-dot', title: '等待输入', text: String(col.waitingCount) }) : null,
+    h('h2', { class: 'column-title', text: col.title }),
+  );
+  const toggle = () => send({ type: 'toggleColumn', columnId: col.id });
+  el.addEventListener('click', toggle);
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggle();
+    }
+  });
+  // Dropping onto a collapsed column puts the card on top, where it will be seen first when expanded.
+  dropTarget(el, col.id, () => 0, () => {});
+  return el;
+}
+
+function column(col: ViewColumn, now: number): HTMLElement {
+  if (col.collapsed) return collapsedColumn(col);
+  const list = h('div', { class: 'card-list' });
+  for (const c of col.cards) list.append(card(c, now, col.id === 'done'));
+  if (col.cards.length === 0) {
+    const hint = col.id === 'inbox' ? '新开的 session 会先出现在这里' : col.id === 'done' ? '点卡片上的「完成」，或把卡片拖到这里' : '把卡片拖到这里';
+    list.append(h('p', { class: 'empty', text: hint }));
+  }
+
+  const el = h('section', { class: 'column', 'data-column': col.id }, columnHeader(col), list);
+  dropTarget(
+    el,
+    col.id,
+    (y) => slotFor(list, y),
+    (y) => {
+      const slot = slotFor(list, y);
+      const cards = [...list.querySelectorAll<HTMLElement>('.card:not(.is-dragging)')];
+      const marker = h('div', { class: 'drop-marker' });
+      if (slot < cards.length) list.insertBefore(marker, cards[slot]!);
+      else list.append(marker);
+    },
+  );
   return el;
 }
 

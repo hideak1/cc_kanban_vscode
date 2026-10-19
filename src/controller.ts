@@ -1,15 +1,17 @@
 import {
   addColumn,
   buildView,
+  completeCard,
   createDraft,
   deleteColumn,
   deleteDraft,
-  hideCard,
+  markStarting,
   moveCard,
   promoteDraft,
   reconcile,
   renameColumn,
   sessionCardId,
+  toggleColumn,
 } from './boardModel';
 import type { BoardStore } from './boardStore';
 import type { CliClient } from './cliClient';
@@ -26,7 +28,7 @@ export interface Ui {
   showInfo(message: string): void;
 }
 
-type Cli = Pick<CliClient, 'listSessions' | 'startSession' | 'stopSession'>;
+type Cli = Pick<CliClient, 'listSessions' | 'startSession' | 'stopSession' | 'respawnSession'>;
 
 export interface ControllerDeps {
   cli: Cli | null;
@@ -112,8 +114,34 @@ export class Controller {
         await this.refresh();
         return;
       }
-      case 'hide':
-        this.commit(hideCard(this.board, msg.cardId));
+      case 'complete': {
+        // Move first so the board reacts instantly; then stop a running background session.
+        const s = this.sessionFor(msg.cardId);
+        this.commit(completeCard(this.board, msg.cardId));
+        if (s && this.cli && s.kind !== 'interactive' && s.status !== null) {
+          try {
+            await this.cli.stopSession(s.shortId);
+          } catch (e) {
+            this.d.ui.showError(`停止失败：${messageOf(e)}`);
+          }
+          await this.refresh();
+        }
+        return;
+      }
+      case 'resume': {
+        const s = this.sessionFor(msg.cardId);
+        if (!s || !this.cli) return;
+        this.commit(markStarting(this.board, msg.cardId, this.d.now()));
+        try {
+          await this.cli.respawnSession(s.shortId);
+        } catch (e) {
+          this.d.ui.showError(`恢复失败：${messageOf(e)}`);
+        }
+        await this.refresh();
+        return;
+      }
+      case 'toggleColumn':
+        this.commit(toggleColumn(this.board, msg.columnId));
         return;
       case 'addColumn':
         this.commit(addColumn(this.board, `c-${this.d.newId()}`, msg.title));

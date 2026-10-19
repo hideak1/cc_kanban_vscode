@@ -1,10 +1,20 @@
 import type { Board, Column, Draft, Session, Tone, View, ViewCard } from './types';
 
 export const INBOX_ID = 'inbox';
-const INBOX_TITLE = '未归类';
+export const DONE_ID = 'done';
+export const INBOX_TITLE = '未归类';
+export const DONE_TITLE = '已完成';
 
 export function defaultBoard(): Board {
-  return { version: 1, columns: [{ id: INBOX_ID, title: INBOX_TITLE, cardIds: [] }], drafts: {}, hidden: [], starting: {} };
+  return {
+    version: 1,
+    columns: [
+      { id: INBOX_ID, title: INBOX_TITLE, cardIds: [], collapsed: false },
+      { id: DONE_ID, title: DONE_TITLE, cardIds: [], collapsed: true },
+    ],
+    drafts: {},
+    starting: {},
+  };
 }
 
 export function sessionCardId(shortId: string): string {
@@ -13,23 +23,25 @@ export function sessionCardId(shortId: string): string {
 
 const draftCardId = (draftId: string) => `d:${draftId}`;
 const isSessionCard = (cardId: string) => cardId.startsWith('s:');
+const isBuiltIn = (columnId: string) => columnId === INBOX_ID || columnId === DONE_ID;
 
-export function statusBadge(status: string | null): { label: string; tone: Tone } {
-  switch (status) {
-    case 'working':
-    case 'busy':
-      return { label: '运行中', tone: 'running' };
-    case 'waiting':
-      return { label: '等待输入', tone: 'waiting' };
-    case 'idle':
-      return { label: '空闲', tone: 'idle' };
-    case 'done':
-      return { label: '完成', tone: 'done' };
-    case null:
-      return { label: '已停止', tone: 'stopped' };
-    default:
-      return { label: status, tone: 'unknown' };
+/**
+ * `status` is process activity (busy / idle / waiting, null when no process runs);
+ * `state` is the task state background sessions report (working / blocked / done / failed / stopped).
+ * A session that ends its turn with a question is `idle` + `blocked`, so `state` decides first.
+ */
+export function sessionBadge(s: Session, justStarted: boolean): { label: string; tone: Tone } {
+  if (s.status === 'waiting') return { label: '等待输入', tone: 'waiting' };
+  if (s.state === 'blocked') return { label: '等待你回复', tone: 'waiting' };
+  if (s.status === null && justStarted) return { label: '启动中', tone: 'running' };
+  if (s.state === 'working' || (s.state === null && (s.status === 'busy' || s.status === 'working'))) {
+    return { label: '运行中', tone: 'running' };
   }
+  if (s.state === 'done' || (s.state === null && s.status === 'done')) return { label: '待查看', tone: 'review' };
+  if (s.state === 'failed') return { label: '已中断', tone: 'failed' };
+  if (s.state === 'stopped' || (s.state === null && s.status === null)) return { label: '已停止', tone: 'stopped' };
+  if (s.state === null && s.status === 'idle') return { label: '空闲', tone: 'idle' };
+  return { label: s.state ?? s.status ?? '未知', tone: 'unknown' };
 }
 
 function folderOf(cwd: string): string {
@@ -45,16 +57,11 @@ function removeCardEverywhere(columns: Column[], cardId: string): Column[] {
   return columns.map((c) => (c.cardIds.includes(cardId) ? { ...c, cardIds: c.cardIds.filter((id) => id !== cardId) } : c));
 }
 
-export function reconcile(
-  board: Board,
-  sessions: Session[],
-  opts: { pruneMissing: boolean; startedAfter: number },
-): Board {
+export function reconcile(board: Board, sessions: Session[], opts: { pruneMissing: boolean; startedAfter: number }): Board {
   const live = new Set(sessions.map((s) => sessionCardId(s.shortId)));
   let changed = false;
 
   let columns = board.columns;
-  let hidden = board.hidden;
   let starting = board.starting;
   if (opts.pruneMissing) {
     const reported = new Set(sessions.filter((s) => s.status !== null).map((s) => sessionCardId(s.shortId)));
@@ -71,63 +78,68 @@ export function reconcile(
       changed = true;
       return { ...c, cardIds: kept };
     });
-    const keptHidden = hidden.filter((id) => live.has(id));
-    if (keptHidden.length !== hidden.length) {
-      changed = true;
-      hidden = keptHidden;
-    }
   }
 
   const placed = new Set(columns.flatMap((c) => c.cardIds));
-  const hiddenSet = new Set(hidden);
-  const unseen = sessions
-    .map((s) => sessionCardId(s.shortId))
-    .filter((id) => !placed.has(id) && !hiddenSet.has(id));
+  const unseen = sessions.map((s) => sessionCardId(s.shortId)).filter((id) => !placed.has(id));
   if (unseen.length > 0) {
     changed = true;
     columns = columns.map((c) => (c.id === INBOX_ID ? { ...c, cardIds: [...c.cardIds, ...unseen] } : c));
   }
 
-  return changed ? { ...board, columns, hidden, starting } : board;
+  return changed ? { ...board, columns, starting } : board;
+}
+
+function sessionCard(id: string, s: Session, justStarted: boolean): ViewCard {
+  const background = s.kind !== 'interactive';
+  return {
+    id,
+    type: 'session',
+    title: s.name,
+    cwd: s.cwd,
+    folder: folderOf(s.cwd),
+    badge: sessionBadge(s, justStarted),
+    detail: s.waitingFor,
+    interactive: !background,
+    startedAt: s.startedAt,
+    canStop: background && s.status !== null,
+    canResume: background && s.status === null && !justStarted,
+  };
+}
+
+function draftCard(id: string, d: Draft): ViewCard {
+  return {
+    id,
+    type: 'draft',
+    title: d.title,
+    cwd: d.cwd,
+    folder: folderOf(d.cwd),
+    badge: null,
+    detail: null,
+    interactive: false,
+    startedAt: null,
+    canStop: false,
+    canResume: false,
+    prompt: d.prompt,
+  };
 }
 
 export function buildView(board: Board, sessions: Session[]): View {
   const byCard = new Map(sessions.map((s) => [sessionCardId(s.shortId), s]));
+  let waitingCount = 0;
   const columns = board.columns.map((c) => {
     const cards: ViewCard[] = [];
     for (const id of c.cardIds) {
       const s = byCard.get(id);
-      if (s) {
-        cards.push({
-          id,
-          type: 'session',
-          title: s.name,
-          cwd: s.cwd,
-          folder: folderOf(s.cwd),
-          badge: s.status === null && id in board.starting ? { label: '启动中', tone: 'running' } : statusBadge(s.status),
-          interactive: s.kind === 'interactive',
-          startedAt: s.startedAt,
-        });
-        continue;
-      }
       const draft = id.startsWith('d:') ? board.drafts[id.slice(2)] : undefined;
-      if (draft) {
-        cards.push({
-          id,
-          type: 'draft',
-          title: draft.title,
-          cwd: draft.cwd,
-          folder: folderOf(draft.cwd),
-          badge: null,
-          interactive: false,
-          startedAt: null,
-          prompt: draft.prompt,
-        });
-      }
+      if (s) cards.push(sessionCard(id, s, id in board.starting));
+      else if (draft) cards.push(draftCard(id, draft));
     }
-    return { id: c.id, title: c.title, removable: c.id !== INBOX_ID, cards };
+    const columnWaiting = cards.filter((x) => x.badge?.tone === 'waiting').length;
+    waitingCount += columnWaiting;
+    return { id: c.id, title: c.title, builtIn: isBuiltIn(c.id), collapsed: c.collapsed, waitingCount: columnWaiting, cards };
   });
-  return { columns, waitingCount: sessions.filter((s) => s.status === 'waiting').length };
+  return { columns, waitingCount };
 }
 
 export function moveCard(b: Board, cardId: string, toColumnId: string, index: number): Board {
@@ -141,25 +153,36 @@ export function moveCard(b: Board, cardId: string, toColumnId: string, index: nu
   return withColumns(b, columns);
 }
 
+export function completeCard(b: Board, cardId: string): Board {
+  return moveCard(b, cardId, DONE_ID, 0);
+}
+
 export function addColumn(b: Board, id: string, title: string): Board {
   const t = title.trim();
   if (!t || b.columns.some((c) => c.id === id)) return b;
-  return withColumns(b, [...b.columns, { id, title: t, cardIds: [] }]);
+  const doneAt = b.columns.findIndex((c) => c.id === DONE_ID);
+  const at = doneAt === -1 ? b.columns.length : doneAt;
+  return withColumns(b, [...b.columns.slice(0, at), { id, title: t, cardIds: [], collapsed: false }, ...b.columns.slice(at)]);
 }
 
 export function renameColumn(b: Board, columnId: string, title: string): Board {
   const t = title.trim();
-  if (!t || columnId === INBOX_ID || !b.columns.some((c) => c.id === columnId)) return b;
+  if (!t || isBuiltIn(columnId) || !b.columns.some((c) => c.id === columnId)) return b;
   return withColumns(b, b.columns.map((c) => (c.id === columnId ? { ...c, title: t } : c)));
 }
 
 export function deleteColumn(b: Board, columnId: string): Board {
   const doomed = b.columns.find((c) => c.id === columnId);
-  if (!doomed || columnId === INBOX_ID) return b;
+  if (!doomed || isBuiltIn(columnId)) return b;
   const columns = b.columns
     .filter((c) => c.id !== columnId)
     .map((c) => (c.id === INBOX_ID ? { ...c, cardIds: [...c.cardIds, ...doomed.cardIds] } : c));
   return withColumns(b, columns);
+}
+
+export function toggleColumn(b: Board, columnId: string): Board {
+  if (!b.columns.some((c) => c.id === columnId)) return b;
+  return withColumns(b, b.columns.map((c) => (c.id === columnId ? { ...c, collapsed: !c.collapsed } : c)));
 }
 
 export function createDraft(b: Board, draftId: string, d: Draft): Board {
@@ -172,6 +195,10 @@ export function deleteDraft(b: Board, draftId: string): Board {
   return { ...b, columns: removeCardEverywhere(b.columns, draftCardId(draftId)), drafts };
 }
 
+export function markStarting(b: Board, cardId: string, at: number): Board {
+  return { ...b, starting: { ...b.starting, [cardId]: at } };
+}
+
 export function promoteDraft(b: Board, draftId: string, shortId: string, startedAt: number): Board {
   const from = draftCardId(draftId);
   const to = sessionCardId(shortId);
@@ -180,13 +207,4 @@ export function promoteDraft(b: Board, draftId: string, shortId: string, started
   );
   const { [draftId]: _removed, ...drafts } = b.drafts;
   return { ...b, columns, drafts, starting: { ...b.starting, [to]: startedAt } };
-}
-
-export function hideCard(b: Board, cardId: string): Board {
-  if (cardId.startsWith('d:')) return deleteDraft(b, cardId.slice(2));
-  return {
-    ...b,
-    columns: removeCardEverywhere(b.columns, cardId),
-    hidden: b.hidden.includes(cardId) ? b.hidden : [...b.hidden, cardId],
-  };
 }

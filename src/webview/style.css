@@ -2,7 +2,8 @@
   --tone-running: var(--vscode-charts-blue);
   --tone-waiting: var(--vscode-charts-orange);
   --tone-idle: var(--vscode-descriptionForeground);
-  --tone-done: var(--vscode-charts-green);
+  --tone-review: var(--vscode-charts-green);
+  --tone-failed: var(--vscode-charts-red, var(--vscode-errorForeground));
   --tone-stopped: var(--vscode-disabledForeground, var(--vscode-descriptionForeground));
   --tone-unknown: var(--vscode-charts-purple);
   --tone-draft: var(--vscode-textLink-foreground);
@@ -112,17 +113,26 @@ body {
 }
 
 .btn-icon {
-  margin-left: auto;
   padding: 0 6px;
   border: 0;
   background: none;
   color: var(--muted);
+}
+
+.btn-delete {
+  margin-left: auto;
   visibility: hidden;
 }
 
-.column-header:hover .btn-icon,
-.btn-icon:focus-visible {
+.column-header:hover .btn-delete,
+.btn-delete:focus-visible {
   visibility: visible;
+}
+
+.collapse {
+  margin-left: -6px;
+  font-size: 1.1em;
+  line-height: 1;
 }
 
 .btn-icon:hover {
@@ -268,6 +278,41 @@ textarea.input {
   background: var(--vscode-focusBorder);
 }
 
+/* Collapsed column: a narrow strip with a vertical title; still a drop target. */
+.column.is-collapsed {
+  flex: 0 0 40px;
+  align-items: center;
+  gap: 8px;
+  min-height: 160px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.column.is-collapsed:hover {
+  background: var(--vscode-list-hoverBackground, var(--vscode-sideBar-background));
+}
+
+.column.is-collapsed:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+.column.is-collapsed .column-title {
+  writing-mode: vertical-rl;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.waiting-dot {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--tone-waiting);
+  color: var(--vscode-editor-background);
+  font-size: 0.85em;
+  font-weight: 600;
+  text-align: center;
+}
+
 /* ---------- cards ---------- */
 
 .card {
@@ -292,7 +337,8 @@ textarea.input {
 .tone-running { --tone: var(--tone-running); }
 .tone-waiting { --tone: var(--tone-waiting); }
 .tone-idle { --tone: var(--tone-idle); }
-.tone-done { --tone: var(--tone-done); }
+.tone-review { --tone: var(--tone-review); }
+.tone-failed { --tone: var(--tone-failed); }
 .tone-stopped { --tone: var(--tone-stopped); }
 .tone-draft { --tone: var(--tone-draft); }
 
@@ -325,9 +371,17 @@ textarea.input {
   width: 4px;
 }
 
-.tone-stopped .card-title,
-.tone-done .card-title {
+.tone-stopped .card-title {
   color: var(--muted);
+}
+
+[data-column='done'] .card {
+  opacity: 0.75;
+}
+
+[data-column='done'] .card:hover,
+[data-column='done'] .card:focus-within {
+  opacity: 1;
 }
 
 .tone-draft {
@@ -354,6 +408,11 @@ textarea.input {
   font-weight: 600;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.card-detail {
+  margin: 0 0 4px;
+  color: var(--tone);
 }
 
 .card-prompt {

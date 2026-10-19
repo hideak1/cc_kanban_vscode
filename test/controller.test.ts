@@ -9,7 +9,9 @@ function session(shortId: string, over: Partial<Session> = {}): Session {
     shortId,
     name: `name-${shortId}`,
     cwd: `/w/${shortId}`,
-    status: 'working',
+    status: 'busy',
+    state: 'working',
+    waitingFor: null,
     kind: 'background',
     pid: 1,
     startedAt: 1,
@@ -20,6 +22,7 @@ function session(shortId: string, over: Partial<Session> = {}): Session {
 function setup(opts: { sessions?: Session[]; board?: Board; recovered?: boolean; noCli?: boolean } = {}) {
   let sessions = opts.sessions ?? [];
   let listError: Error | null = null;
+  let stopError: Error | null = null;
   let startResult: string | Error = 'f8475127';
   let clock = 0;
   let idSeq = 0;
@@ -46,6 +49,10 @@ function setup(opts: { sessions?: Session[]; board?: Board; recovered?: boolean;
     },
     stopSession: async (id: string) => {
       calls.push(`stop ${id}`);
+      if (stopError) throw stopError;
+    },
+    respawnSession: async (id: string) => {
+      calls.push(`respawn ${id}`);
     },
   };
   const ui: Ui = {
@@ -87,6 +94,7 @@ function setup(opts: { sessions?: Session[]; board?: Board; recovered?: boolean;
     lastState: () => posts.filter((p) => p.type === 'state').at(-1) as Extract<ToWebview, { type: 'state' }>,
     setSessions: (s: Session[]) => (sessions = s),
     failList: (e: Error | null) => (listError = e),
+    failStop: (e: Error | null) => (stopError = e),
     setStart: (r: string | Error) => (startResult = r),
     advance: (ms: number) => (clock += ms),
     answerConfirm: (v: boolean) => (confirmAnswer = v),
@@ -96,7 +104,11 @@ function setup(opts: { sessions?: Session[]; board?: Board; recovered?: boolean;
   };
 }
 
-const cardIds = (s: ReturnType<typeof setup>) => s.lastState().view.columns.map((col) => col.cards.map((x) => x.id));
+/** Card ids per column, excluding the built-in done column (see doneIds). */
+const cardIds = (s: ReturnType<typeof setup>) =>
+  s.lastState().view.columns.filter((col) => col.id !== 'done').map((col) => col.cards.map((x) => x.id));
+const doneIds = (s: ReturnType<typeof setup>) =>
+  s.lastState().view.columns.find((col) => col.id === 'done')?.cards.map((x) => x.id);
 
 describe('Controller.refresh', () => {
   it('posts the view and saves only when the board changed', async () => {
@@ -110,7 +122,8 @@ describe('Controller.refresh', () => {
   });
 
   it('keeps previous sessions and placements when the CLI fails', async () => {
-    const board: Board = { ...defaultBoard(), columns: [...defaultBoard().columns, { id: 'c-1', title: 'A', cardIds: ['s:aaaaaaaa'] }] };
+    const [inbox, done] = defaultBoard().columns;
+    const board: Board = { ...defaultBoard(), columns: [inbox!, { id: 'c-1', title: 'A', cardIds: ['s:aaaaaaaa'], collapsed: false }, done!] };
     const s = setup({ sessions: [session('aaaaaaaa')], board });
     await s.c.refresh();
     s.failList(new Error('timeout'));
@@ -153,7 +166,7 @@ describe('Controller.handle', () => {
     await s.c.handle({ type: 'addColumn', title: 'Doing' });
     await s.c.handle({ type: 'move', cardId: 's:aaaaaaaa', toColumnId: 'c-id1', index: 0 });
     expect(cardIds(s)).toEqual([[], ['s:aaaaaaaa']]);
-    expect(s.saved?.columns[1]).toEqual({ id: 'c-id1', title: 'Doing', cardIds: ['s:aaaaaaaa'] });
+    expect(s.saved?.columns[1]).toEqual({ id: 'c-id1', title: 'Doing', cardIds: ['s:aaaaaaaa'], collapsed: false });
   });
 
   it('starts a draft and keeps the new card through a refresh that does not list it yet', async () => {
@@ -245,7 +258,7 @@ describe('Controller.handle', () => {
     await s.c.handle({ type: 'addColumn', title: 'Doing' });
     await s.c.handle({ type: 'deleteColumn', columnId: 'c-id1' });
     expect(s.calls.some((x) => x.startsWith('confirm'))).toBe(false);
-    expect(s.saved?.columns).toHaveLength(1);
+    expect(s.saved?.columns.map((c) => c.id)).toEqual(['inbox', 'done']);
   });
 
   it('stops a session then refreshes', async () => {
@@ -255,13 +268,46 @@ describe('Controller.handle', () => {
     expect(s.calls.slice(-2)).toEqual(['stop aaaaaaaa', 'list']);
   });
 
-  it('hides a session card', async () => {
+  it('completes a running session: moves it to done and stops it', async () => {
     const s = setup({ sessions: [session('aaaaaaaa')] });
     await s.c.refresh();
-    await s.c.handle({ type: 'hide', cardId: 's:aaaaaaaa' });
+    await s.c.handle({ type: 'complete', cardId: 's:aaaaaaaa' });
+    expect(s.calls.slice(-2)).toEqual(['stop aaaaaaaa', 'list']);
     expect(cardIds(s)).toEqual([[]]);
+    expect(doneIds(s)).toEqual(['s:aaaaaaaa']);
+  });
+
+  it('completes an already-stopped or interactive session without calling stop', async () => {
+    const s = setup({ sessions: [session('aaaaaaaa', { status: null, state: 'done' }), session('bbbbbbbb', { kind: 'interactive', state: null })] });
     await s.c.refresh();
-    expect(cardIds(s)).toEqual([[]]);
+    await s.c.handle({ type: 'complete', cardId: 's:aaaaaaaa' });
+    await s.c.handle({ type: 'complete', cardId: 's:bbbbbbbb' });
+    expect(s.calls.some((x) => x.startsWith('stop'))).toBe(false);
+    expect(doneIds(s)).toEqual(['s:bbbbbbbb', 's:aaaaaaaa']);
+  });
+
+  it('keeps the card in done and shows the error when stop fails during complete', async () => {
+    const s = setup({ sessions: [session('aaaaaaaa')] });
+    await s.c.refresh();
+    s.failStop(new Error('no such job'));
+    await s.c.handle({ type: 'complete', cardId: 's:aaaaaaaa' });
+    expect(s.calls).toContain('error 停止失败：no such job');
+    expect(doneIds(s)).toEqual(['s:aaaaaaaa']);
+  });
+
+  it('resumes a stopped background session with respawn and shows it as starting', async () => {
+    const s = setup({ sessions: [session('aaaaaaaa', { status: null, state: 'failed' })] });
+    await s.c.refresh();
+    await s.c.handle({ type: 'resume', cardId: 's:aaaaaaaa' });
+    expect(s.calls.slice(-2)).toEqual(['respawn aaaaaaaa', 'list']);
+    expect(s.lastState().view.columns[0]!.cards[0]!.badge).toEqual({ label: '启动中', tone: 'running' });
+  });
+
+  it('toggles a column collapsed and persists it', async () => {
+    const s = setup();
+    await s.c.handle({ type: 'toggleColumn', columnId: 'done' });
+    expect(s.saved?.columns.at(-1)?.collapsed).toBe(false);
+    expect(s.lastState().view.columns.at(-1)?.collapsed).toBe(false);
   });
 
   it('posts the picked folder', async () => {
@@ -277,7 +323,7 @@ describe('Controller.handle', () => {
   it('applies a board changed in another window', async () => {
     const s = setup({ sessions: [session('aaaaaaaa')] });
     await s.c.refresh();
-    s.c.setBoard({ ...defaultBoard(), columns: [{ id: 'inbox', title: '未归类', cardIds: [] }, { id: 'c-x', title: 'X', cardIds: ['s:aaaaaaaa'] }] });
+    s.c.setBoard({ ...defaultBoard(), columns: [{ id: 'inbox', title: '未归类', cardIds: [], collapsed: false }, { id: 'c-x', title: 'X', cardIds: ['s:aaaaaaaa'], collapsed: false }] });
     expect(cardIds(s)).toEqual([[], ['s:aaaaaaaa']]);
   });
 });

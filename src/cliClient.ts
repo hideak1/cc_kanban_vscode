@@ -29,13 +29,16 @@ export function parseAgentsJson(stdout: string): Session[] {
     if (typeof raw !== 'object' || raw === null) continue;
     const r = raw as Record<string, unknown>;
     if (typeof r.sessionId !== 'string' || r.sessionId === '') continue;
-    const shortId = shortIdOf(r.sessionId);
+    const shortId = typeof r.id === 'string' && r.id !== '' ? r.id : shortIdOf(r.sessionId);
+    const str = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null);
     sessions.push({
       sessionId: r.sessionId,
       shortId,
       name: typeof r.name === 'string' && r.name !== '' ? r.name : shortId,
       cwd: typeof r.cwd === 'string' ? r.cwd : '',
-      status: typeof r.status === 'string' ? r.status : null,
+      status: str(r.status),
+      state: str(r.state),
+      waitingFor: str(r.waitingFor),
       kind: typeof r.kind === 'string' ? r.kind : 'unknown',
       pid: typeof r.pid === 'number' ? r.pid : null,
       startedAt: typeof r.startedAt === 'number' ? r.startedAt : null,
@@ -82,6 +85,11 @@ export class CliClient {
     });
     if (result.code !== 0) throw failure(result, `claude --bg exited with code ${result.code}`);
     return parseBgOutput(result.stdout);
+  }
+
+  async respawnSession(shortId: string): Promise<void> {
+    const result = await this.run(this.claudePath, ['respawn', shortId], { timeoutMs: START_TIMEOUT_MS });
+    if (result.code !== 0) throw failure(result, `claude respawn exited with code ${result.code}`);
   }
 
   async stopSession(shortId: string): Promise<void> {

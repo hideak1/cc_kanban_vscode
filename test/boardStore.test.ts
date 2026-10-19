@@ -17,13 +17,15 @@ beforeEach(() => {
 const sample: Board = {
   version: 1,
   columns: [
-    { id: 'inbox', title: '未归类', cardIds: ['s:aaaaaaaa', 'd:x1'] },
-    { id: 'c-1', title: 'Doing', cardIds: ['s:bbbbbbbb'] },
+    { id: 'inbox', title: '未归类', cardIds: ['s:aaaaaaaa', 'd:x1'], collapsed: false },
+    { id: 'c-1', title: 'Doing', cardIds: ['s:bbbbbbbb'], collapsed: true },
+    { id: 'done', title: '已完成', cardIds: ['s:cccccccc'], collapsed: true },
   ],
   drafts: { x1: { title: 'T', prompt: 'P', cwd: '/w' } },
-  hidden: ['s:cccccccc'],
   starting: { 's:bbbbbbbb': 1790694099011 },
 };
+
+const titles = (b: Board | null) => b?.columns.map((c) => [c.id, c.title, c.collapsed]);
 
 describe('BoardStore', () => {
   it('returns the default board when the file is missing', () => {
@@ -54,13 +56,13 @@ describe('BoardStore', () => {
     store.save(sample);
     const seen: Board[] = [];
     const sub = store.watch((b) => seen.push(b));
-    store.save({ ...sample, hidden: [] });
+    store.save({ ...sample, starting: {} });
     await new Promise((r) => setTimeout(r, 300));
     expect(seen).toHaveLength(0);
-    writeFileSync(file, JSON.stringify({ ...sample, hidden: ['s:dddddddd'] }));
+    writeFileSync(file, JSON.stringify({ ...sample, starting: { 's:dddddddd': 5 } }));
     await new Promise((r) => setTimeout(r, 300));
     sub.dispose();
-    expect(seen.at(-1)?.hidden).toEqual(['s:dddddddd']);
+    expect(seen.at(-1)?.starting).toEqual({ 's:dddddddd': 5 });
   });
 
   it('treats an unsupported version as corrupt', () => {
@@ -76,16 +78,39 @@ describe('normalizeBoard', () => {
     expect(normalizeBoard(sample)).toEqual(sample);
   });
 
-  it('adds a missing inbox at the front and forces its title', () => {
-    const out = normalizeBoard({ version: 1, columns: [{ id: 'c-1', title: 'A', cardIds: [] }], drafts: {}, hidden: [] });
-    expect(out?.columns.map((c) => [c.id, c.title])).toEqual([['inbox', '未归类'], ['c-1', 'A']]);
-    const moved = normalizeBoard({
+  it('adds missing built-in columns, keeps inbox first and done last, forces their titles', () => {
+    const out = normalizeBoard({
       version: 1,
-      columns: [{ id: 'c-1', title: 'A', cardIds: [] }, { id: 'inbox', title: 'renamed', cardIds: [] }],
+      columns: [
+        { id: 'done', title: 'x', cardIds: [], collapsed: false },
+        { id: 'c-1', title: 'A', cardIds: [] },
+        { id: 'inbox', title: 'renamed', cardIds: [] },
+      ],
       drafts: {},
-      hidden: [],
     });
-    expect(moved?.columns.map((c) => [c.id, c.title])).toEqual([['inbox', '未归类'], ['c-1', 'A']]);
+    expect(titles(out)).toEqual([
+      ['inbox', '未归类', false],
+      ['c-1', 'A', false],
+      ['done', '已完成', false],
+    ]);
+    expect(titles(normalizeBoard({ version: 1, columns: [], drafts: {} }))).toEqual([
+      ['inbox', '未归类', false],
+      ['done', '已完成', true],
+    ]);
+  });
+
+  it('migrates the old hidden list into the done column', () => {
+    const out = normalizeBoard({
+      version: 1,
+      columns: [{ id: 'inbox', title: '未归类', cardIds: ['s:aaaaaaaa'] }],
+      drafts: {},
+      hidden: ['s:cccccccc', 's:aaaaaaaa', 7],
+    });
+    expect(out?.columns.map((c) => [c.id, c.cardIds])).toEqual([
+      ['inbox', ['s:aaaaaaaa']],
+      ['done', ['s:cccccccc']],
+    ]);
+    expect(out && 'hidden' in out).toBe(false);
   });
 
   it('drops duplicate, malformed, and orphan-draft card ids', () => {
@@ -96,18 +121,13 @@ describe('normalizeBoard', () => {
         { id: 'c-1', title: 'A', cardIds: ['s:aaaaaaaa', 's:bbbbbbbb'] },
       ],
       drafts: { x1: { title: 'T', prompt: 'P', cwd: '/w' }, bad: { title: 1 } },
-      hidden: ['s:cccccccc', 7],
     });
-    expect(out).toEqual({
-      version: 1,
-      columns: [
-        { id: 'inbox', title: '未归类', cardIds: ['s:aaaaaaaa', 'd:x1'] },
-        { id: 'c-1', title: 'A', cardIds: ['s:bbbbbbbb'] },
-      ],
-      drafts: { x1: { title: 'T', prompt: 'P', cwd: '/w' } },
-      hidden: ['s:cccccccc'],
-      starting: {},
-    });
+    expect(out?.columns.map((c) => [c.id, c.cardIds])).toEqual([
+      ['inbox', ['s:aaaaaaaa', 'd:x1']],
+      ['c-1', ['s:bbbbbbbb']],
+      ['done', []],
+    ]);
+    expect(out?.drafts).toEqual({ x1: { title: 'T', prompt: 'P', cwd: '/w' } });
   });
 
   it('drops columns without a string id or title and duplicate column ids', () => {
@@ -115,9 +135,8 @@ describe('normalizeBoard', () => {
       version: 1,
       columns: [{ id: 'inbox', title: '未归类', cardIds: [] }, { title: 'x' }, { id: 'c-1', title: 'A', cardIds: [] }, { id: 'c-1', title: 'B', cardIds: [] }],
       drafts: {},
-      hidden: [],
     });
-    expect(out?.columns.map((c) => c.title)).toEqual(['未归类', 'A']);
+    expect(out?.columns.map((c) => c.title)).toEqual(['未归类', 'A', '已完成']);
   });
 
   it('keeps numeric start marks for session cards and defaults a missing map', () => {

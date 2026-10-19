@@ -1,9 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, watch, writeFileSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
-import { INBOX_ID, defaultBoard } from './boardModel';
+import { DONE_ID, DONE_TITLE, INBOX_ID, INBOX_TITLE, defaultBoard } from './boardModel';
 import type { Board, Column, Draft } from './types';
 
-const INBOX_TITLE = defaultBoard().columns[0]!.title;
 const WATCH_DEBOUNCE_MS = 100;
 
 function isDraft(x: unknown): x is Draft {
@@ -34,6 +33,7 @@ export function normalizeBoard(raw: unknown): Board | null {
 
   const seenColumns = new Set<string>();
   let inbox: Column | null = null;
+  let done: Column | null = null;
   const others: Column[] = [];
   for (const c of Array.isArray(r.columns) ? r.columns : []) {
     if (typeof c !== 'object' || c === null) continue;
@@ -41,13 +41,18 @@ export function normalizeBoard(raw: unknown): Board | null {
     if (typeof col.id !== 'string' || typeof col.title !== 'string' || seenColumns.has(col.id)) continue;
     seenColumns.add(col.id);
     const cardIds = (Array.isArray(col.cardIds) ? col.cardIds : []).filter(validCard);
-    if (col.id === INBOX_ID) inbox = { id: INBOX_ID, title: INBOX_TITLE, cardIds };
-    else others.push({ id: col.id, title: col.title, cardIds });
+    const collapsed = typeof col.collapsed === 'boolean' ? col.collapsed : col.id === DONE_ID;
+    if (col.id === INBOX_ID) inbox = { id: INBOX_ID, title: INBOX_TITLE, cardIds, collapsed };
+    else if (col.id === DONE_ID) done = { id: DONE_ID, title: DONE_TITLE, cardIds, collapsed };
+    else others.push({ id: col.id, title: col.title, cardIds, collapsed });
   }
+  done ??= { id: DONE_ID, title: DONE_TITLE, cardIds: [], collapsed: true };
 
-  const hidden = (Array.isArray(r.hidden) ? r.hidden : []).filter(
-    (id): id is string => typeof id === 'string' && id.startsWith('s:'),
+  // Version-1 boards before the done column had a "hidden" list; those cards now live in done.
+  const formerlyHidden = (Array.isArray(r.hidden) ? r.hidden : []).filter(
+    (id): id is string => typeof id === 'string' && id.startsWith('s:') && validCard(id),
   );
+  if (formerlyHidden.length > 0) done = { ...done, cardIds: [...done.cardIds, ...formerlyHidden] };
 
   const starting: Record<string, number> = {};
   if (typeof r.starting === 'object' && r.starting !== null) {
@@ -58,9 +63,8 @@ export function normalizeBoard(raw: unknown): Board | null {
 
   return {
     version: 1,
-    columns: [inbox ?? { id: INBOX_ID, title: INBOX_TITLE, cardIds: [] }, ...others],
+    columns: [inbox ?? { id: INBOX_ID, title: INBOX_TITLE, cardIds: [], collapsed: false }, ...others, done],
     drafts,
-    hidden,
     starting,
   };
 }

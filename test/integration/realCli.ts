@@ -33,7 +33,24 @@ for (let i = 0; i < 20 && !seen; i++) {
   }
 }
 
+const statusOf = async () => (await cli.listSessions()).find((s) => s.shortId === shortId);
 await cli.stopSession(shortId).catch((e) => console.log(`stop: ${e.message}`));
+await new Promise((r) => setTimeout(r, 2000));
+const stopped = await statusOf();
+console.log(`after stop: status=${stopped?.status} state=${stopped?.state}`);
+
+await cli.respawnSession(shortId);
+let resumed = false;
+for (let i = 0; i < 10 && !resumed; i++) {
+  await new Promise((r) => setTimeout(r, 1500));
+  const s = await statusOf();
+  if (s?.status) {
+    resumed = true;
+    console.log(`after respawn: status=${s.status} state=${s.state}`);
+  }
+}
+
+await cli.stopSession(shortId).catch(() => {});
 const rm = await nodeRunner(cli.claudePath, ['rm', shortId], { timeoutMs: 10000 });
 console.log(`rm exit=${rm.code}`);
 
@@ -41,4 +58,8 @@ if (!seen) {
   console.error('FAIL: started session never appeared on the board');
   process.exit(1);
 }
-console.log('PASS: real CLI round-trip (list → start → card visible → stop → rm)');
+if (!resumed) {
+  console.error('FAIL: respawn did not bring the stopped session back');
+  process.exit(1);
+}
+console.log('PASS: real CLI round-trip (list → start → card visible → stop → respawn → rm)');
